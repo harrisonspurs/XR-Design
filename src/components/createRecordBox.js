@@ -7,6 +7,8 @@
 import * as THREE from "three";
 import { loadModel } from "./modelLoader.js";
 import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPrompt.js";
+import { isLookingAt } from "./createControls.js";
+
 
 // Tracklist — title, audio file, and album artwork
 const TRACKS = [
@@ -285,12 +287,12 @@ export async function createRecordBox(scene, camera) {
   function update() {
     if (!recordBox) return;
     const distance = camera.position.distanceTo(recordBox.position);
-    if (!uiOpen && distance <= 4) {
+    if (!uiOpen && distance <= 4 && isLookingAt(camera, recordBox, 4)) {
       registerPrompt("recordbox", "Press E to browse records", 3);
     } else {
       clearPrompt("recordbox");
     }
-  }
+ }
 
   return { recordBox, update, nowPlaying };
 }
