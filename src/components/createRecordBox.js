@@ -45,11 +45,30 @@ export async function createRecordBox(scene, camera) {
     recordBox.position.y = 9.1 - bottom;
   }
 
+  let interactionProxy = null;
+  if (recordBox) {
+    recordBox.updateMatrixWorld(true);
+    const worldBox = new THREE.Box3().setFromObject(recordBox);
+    const size = worldBox.getSize(new THREE.Vector3());
+    const center = worldBox.getCenter(new THREE.Vector3());
+    const proxyGeometry = new THREE.BoxGeometry(
+      Math.max(size.x * 0.9, 0.2),
+      Math.max(size.y * 1.1, 0.2),
+      Math.max(size.z * 0.9, 0.2)
+    );
+    const proxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
+    interactionProxy = new THREE.Mesh(proxyGeometry, proxyMaterial);
+    interactionProxy.position.copy(center);
+    scene.add(interactionProxy);
+  }
+
   // ── State ─────────────────────────────────────────────────────────────────
   let currentIndex = 0;
   let uiOpen = false;
   let isDragging = false;
   let dragStartX = 0;
+  let lastLookCheckTime = 0;
+  let cachedIsLooking = false;
 
   // ── UI Container ──────────────────────────────────────────────────────────
   const ui = document.createElement("div");
@@ -287,7 +306,16 @@ export async function createRecordBox(scene, camera) {
   function update() {
     if (!recordBox) return;
     const distance = camera.position.distanceTo(recordBox.position);
-    if (!uiOpen && distance <= 4 && isLookingAt(camera, recordBox, 4)) {
+    const now = performance.now();
+
+    if (now - lastLookCheckTime > 80) {
+      cachedIsLooking = interactionProxy
+        ? isLookingAt(camera, interactionProxy, 4.5)
+        : isLookingAt(camera, recordBox, 4);
+      lastLookCheckTime = now;
+    }
+
+    if (!uiOpen && distance <= 4 && cachedIsLooking) {
       registerPrompt("recordbox", "Press E to browse records", 3);
     } else {
       clearPrompt("recordbox");

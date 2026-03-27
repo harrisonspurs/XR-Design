@@ -13,6 +13,8 @@ export async function createChair(scene, camera) {
   const SEATED_POSITION = { x: 10.5, y: 10.3, z: -1 };
   const STAND_POSITION  = { x: 10.5, y: 10.5, z: 1 };
   let isSeated = false;
+  let lastLookCheckTime = 0;
+  let cachedIsLooking = false;
 
   document.addEventListener("keydown", (e) => {
     if (e.code !== "KeyE") return;
@@ -36,7 +38,14 @@ export async function createChair(scene, camera) {
   function update() {
     if (!chair) return;
     const distance = camera.position.distanceTo(chair.position);
-    if ((distance <= 3 && isLookingAt(camera, chair, 3)) || isSeated) {
+
+    const now = performance.now();
+    if (now - lastLookCheckTime > 80) {
+      cachedIsLooking = isLookingAt(camera, chair, 3);
+      lastLookCheckTime = now;
+    }
+
+    if ((distance <= 3 && cachedIsLooking) || isSeated) {
       registerPrompt("chair",
         isSeated ? "Press E to stand up" : "Press E to sit down",
         isSeated ? 10 : 2

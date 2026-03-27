@@ -6,26 +6,29 @@
 
 import * as THREE from "three";
 import { loadModel } from "./modelLoader.js";
-import { registerPrompt, clearPrompt } from "./createPrompt.js";
+import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPrompt.js";
+import { isLookingAt } from "./createControls.js";
 
 export async function createHeadphones(scene, camera) {
 
-  const headphones = await loadModel(scene, "/models/headphones.glb", {
-    position: { x: 0, y: 0, z: 0 },
-    scale: 1,
-    rotate: 0,
+  const headphones = await loadModel(scene, "/models/headphones_free.glb", {
+    position: { x: -1, y: 1.15, z: 2.8 },
+    scale: 0.01,
+    rotate: Math.PI * 0.45,
   });
 
   if (headphones) {
     const box = new THREE.Box3().setFromObject(headphones);
     const center = box.getCenter(new THREE.Vector3());
     const bottom = box.min.y;
-    headphones.position.x = 11 - center.x;
-    headphones.position.z = -1 - center.z;
-    headphones.position.y = 10.8 - bottom;
+    headphones.position.x = 10.9 - center.x;
+    headphones.position.z = -0.7 - center.z;
+    headphones.position.y = 10.5 - bottom;
   }
 
   let isWearing = false;
+  let lastLookCheckTime = 0;
+  let cachedIsLooking = false;
 
   // Visual indicator that headphones are on
   const indicator = document.createElement("div");
@@ -45,37 +48,45 @@ export async function createHeadphones(scene, camera) {
   `;
   document.body.appendChild(indicator);
 
-  document.addEventListener("keydown", (e) => {
-    if (e.code !== "KeyE") return;
-    if (!headphones) return;
+  function wearHeadphones() {
+    if (!headphones || isWearing) return;
+    isWearing = true;
+    indicator.style.display = "block";
+    headphones.visible = false;
+    clearPrompt("headphones");
+  }
+
+  document.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return;
+    if (!headphones || isWearing) return;
+
+    const active = getActiveInteraction();
+    if (active !== "headphones") return;
 
     const distance = camera.position.distanceTo(headphones.position);
+    if (distance > 2.8) return;
+    if (!cachedIsLooking) return;
 
-    // Put on headphones
-    if (!isWearing && distance <= 3) {
-      isWearing = true;
-      indicator.style.display = "block";
-
-      // Hide the model — player is now wearing them
-      headphones.visible = false;
-      clearPrompt("headphones");
-      return;
-    }
-
-    // Take off headphones
-    if (isWearing) {
-      isWearing = false;
-      indicator.style.display = "none";
-      headphones.visible = true;
-    }
+    wearHeadphones();
   });
 
   function update() {
     if (!headphones) return;
-    if (isWearing) return;
+    if (isWearing) {
+      clearPrompt("headphones");
+      return;
+    }
+
     const distance = camera.position.distanceTo(headphones.position);
-    if (distance <= 3) {
-      registerPrompt("headphones", "Press E to put on headphones", 4);
+    const now = performance.now();
+
+    if (now - lastLookCheckTime > 80) {
+      cachedIsLooking = isLookingAt(camera, headphones, 3.2);
+      lastLookCheckTime = now;
+    }
+
+    if (distance <= 2.8 && cachedIsLooking) {
+      registerPrompt("headphones", "Click to wear headphones", 5);
     } else {
       clearPrompt("headphones");
     }
