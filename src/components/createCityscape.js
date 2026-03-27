@@ -20,8 +20,17 @@ export function createCityscape(scene) {
     0x1a1a1a,  // near black
   ];
 
-  // Window colour — warm yellow glow like lights on inside
-  const WINDOW_COLOUR = 0xffdd88;
+  const windowGeo = new THREE.PlaneGeometry(0.5, 0.7);
+  const warmWindowMat = new THREE.MeshStandardMaterial({
+    color: 0xffdd88,
+    emissive: 0xffdd88,
+    emissiveIntensity: 0.8,
+  });
+  const coolWindowMat = new THREE.MeshStandardMaterial({
+    color: 0xaaddff,
+    emissive: 0xaaddff,
+    emissiveIntensity: 0.75,
+  });
 
   // ── Generate Buildings ────────────────────────────────────────────────────
   for (let i = 0; i < BUILDING_COUNT; i++) {
@@ -75,16 +84,10 @@ export function createCityscape(scene) {
 
           if (Math.random() < 0.35) continue;
 
-          const windowColour = Math.random() > 0.7 ? 0xaaddff : 0xffdd88;
-
-          const windowGeo = new THREE.PlaneGeometry(0.5, 0.7);
-          const windowMat = new THREE.MeshStandardMaterial({
-            color: windowColour,
-            emissive: windowColour,
-            emissiveIntensity: Math.random() * 0.5 + 0.5,
-          });
-
+          const windowMat = Math.random() > 0.7 ? coolWindowMat : warmWindowMat;
           const win = new THREE.Mesh(windowGeo, windowMat);
+          win.castShadow = false;
+          win.receiveShadow = false;
 
           const wx = -width  / 2 + 1.2 + col * (width  / windowColumns);
           const wy = -height / 2 + 2   + row * 3;

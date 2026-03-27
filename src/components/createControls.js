@@ -2,13 +2,33 @@ import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
 const crosshairRaycaster = new THREE.Raycaster();
+const crosshairCenter = new THREE.Vector2(0, 0);
+const raycastMeshesCache = new WeakMap();
+
+function getRaycastMeshes(object) {
+  let meshes = raycastMeshesCache.get(object);
+  if (meshes) return meshes;
+
+  meshes = [];
+  object.traverse((child) => {
+    if (child.isMesh && child.visible) meshes.push(child);
+  });
+  raycastMeshesCache.set(object, meshes);
+  return meshes;
+}
 
 export function isLookingAt(camera, object, maxDistance = 4) {
   if (!object) return false;
-  crosshairRaycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const maxDistanceSq = maxDistance * maxDistance;
+  if (camera.position.distanceToSquared(object.position) > maxDistanceSq * 2.25) {
+    return false;
+  }
+
+  const meshes = getRaycastMeshes(object);
+  if (meshes.length === 0) return false;
+
+  crosshairRaycaster.setFromCamera(crosshairCenter, camera);
   crosshairRaycaster.far = maxDistance;
-  const meshes = [];
-  object.traverse((child) => { if (child.isMesh) meshes.push(child); });
   return crosshairRaycaster.intersectObjects(meshes, false).length > 0;
 }
 
@@ -66,18 +86,23 @@ export function createControls(camera, renderer, getIsSeated = () => false) {
 
   let velocityY = 0;
   let isJumping = false;
-  const GRAVITY        = 0.008;
+  const GRAVITY        = 0.016;
   const ROOFTOP_HEIGHT = 10.5;
   const GROUND_HEIGHT  = 1.7;
   const CROUCH_OFFSET  = 0.5;
+
+  function isInsideRooftopBounds() {
+    return (
+      camera.position.x > 5 && camera.position.x < 13 &&
+      camera.position.z > -4 && camera.position.z < 6
+    );
+  }
 
   function applyGravity() {
     velocityY -= GRAVITY;
     camera.position.y += velocityY;
 
-    if (camera.position.y <= ROOFTOP_HEIGHT + 0.1 &&
-        camera.position.x > 5 && camera.position.x < 13 &&
-        camera.position.z > -4 && camera.position.z < 6) {
+    if (camera.position.y <= ROOFTOP_HEIGHT + 0.1 && isInsideRooftopBounds()) {
       if (!keys.ctrl) camera.position.y = ROOFTOP_HEIGHT;
       velocityY = 0;
       isJumping = false;
@@ -126,6 +151,13 @@ export function createControls(camera, renderer, getIsSeated = () => false) {
 
     if (Math.abs(velForward) > 0.001) controls.moveForward(velForward);
     if (Math.abs(velRight)   > 0.001) controls.moveRight(velRight);
+
+    // Walking off the roof should immediately put player in falling state.
+    if (currentLevel === "rooftop" && !isInsideRooftopBounds()) {
+      currentLevel = "ground";
+      isJumping = true;
+      if (velocityY > 0) velocityY = 0;
+    }
 
     if (keys.space && !isJumping) {
       velocityY = 0.15;

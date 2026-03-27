@@ -21,6 +21,8 @@ prompt.style.cssText = `
 document.body.appendChild(prompt);
 
 let activePrompts = {};
+let shownPromptId = null;
+let shownPromptMessage = "";
 
 export function registerPrompt(id, message, priority = 0) {
   activePrompts[id] = { message, priority };
@@ -46,6 +48,8 @@ function updatePrompt() {
   const keys = Object.keys(activePrompts);
 
   if (keys.length === 0) {
+    shownPromptId = null;
+    shownPromptMessage = "";
     prompt.style.display = "none";
     return;
   }
@@ -54,6 +58,13 @@ function updatePrompt() {
     activePrompts[a].priority >= activePrompts[b].priority ? a : b
   );
 
-  prompt.innerText = activePrompts[top].message;
+  const nextMessage = activePrompts[top].message;
+  if (shownPromptId === top && shownPromptMessage === nextMessage && prompt.style.display === "block") {
+    return;
+  }
+
+  shownPromptId = top;
+  shownPromptMessage = nextMessage;
+  prompt.innerText = nextMessage;
   prompt.style.display = "block";
 }
