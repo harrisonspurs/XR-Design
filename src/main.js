@@ -7,6 +7,8 @@ import { createBoombox } from "./components/createBoombox.js";
 import { createChair } from "./components/createChair.js";
 import { createCityscape } from "./components/createCityscape.js";
 import { createRecordBox } from "./components/createRecordBox.js";
+import { createHeadphones } from "./components/createHeadphones.js";
+import { createPhone } from "./components/createPhone.js";
 
 function createPerformanceHud(applyQuality, getQuality) {
   const hud = document.createElement("div");
@@ -111,9 +113,12 @@ function createShadowOptimizer(scene, camera, getQuality) {
 async function init() {
   const { scene, camera, renderer, applyQuality, getQuality } = createScene();
   await createEnvironment(scene, renderer);
-  const { update: updateBoombox } = await createBoombox(scene, camera);
+  const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
+  const boomboxController = await createBoombox(scene, camera, getIsWearing);
+  const { update: updateBoombox } = boomboxController;
   const { update: updateChair, getIsSeated } = await createChair(scene, camera);
   const { update: updateRecordBox } = await createRecordBox(scene, camera);
+  const { update: updatePhone } = await createPhone(scene, camera, boomboxController);
   await createRooftop(scene);
   createCityscape(scene);
   const { update: updateControls } = createControls(camera, renderer, getIsSeated);
@@ -122,9 +127,11 @@ async function init() {
 
   renderer.setAnimationLoop(() => {
     updateControls();
+    updateHeadphones();
     updateBoombox();
     updateChair();
     updateRecordBox();
+    updatePhone();
     updateShadows();
     updateHud();
     renderer.render(scene, camera);

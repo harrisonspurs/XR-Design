@@ -4,7 +4,7 @@ import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPromp
 import { isLookingAt } from "./createControls.js";
 import * as RecordBox from "./createRecordBox.js";
 
-export async function createBoombox(scene, camera) {
+export async function createBoombox(scene, camera, getIsWearingHeadphones = () => false) {
 
   const boombox = await loadModel(scene, "/models/classic_boombox.glb", {
     position: { x: 2, y: 0.6, z: 3.2 },
@@ -97,12 +97,18 @@ export async function createBoombox(scene, camera) {
   const listener = new THREE.AudioListener();
   camera.add(listener);
 
-  const sound = new THREE.PositionalAudio(listener);
-  sound.setRefDistance(5);
-  sound.setLoop(false);
-  sound.setVolume(1.0);
-  if (boombox) boombox.add(sound);
-  const analyser = new THREE.AudioAnalyser(sound, 64);
+  const speakerSound = new THREE.PositionalAudio(listener);
+  speakerSound.setRefDistance(5);
+  speakerSound.setLoop(false);
+  speakerSound.setVolume(1.0);
+  if (boombox) boombox.add(speakerSound);
+
+  const headphoneSound = new THREE.Audio(listener);
+  headphoneSound.setLoop(false);
+  headphoneSound.setVolume(1.0);
+
+  const speakerAnalyser = new THREE.AudioAnalyser(speakerSound, 64);
+  const headphoneAnalyser = new THREE.AudioAnalyser(headphoneSound, 64);
 
   const audioLoader = new THREE.AudioLoader();
   let isPlaying = false;
@@ -110,6 +116,24 @@ export async function createBoombox(scene, camera) {
   let smoothedAudioLevel = 0;
   let lastLookCheckTime = 0;
   let cachedIsLooking = false;
+  let lastOutputMode = "speaker";
+
+  function useHeadphonesOutput() {
+    try {
+      return !!getIsWearingHeadphones();
+    } catch {
+      return false;
+    }
+  }
+
+  function getActiveSound() {
+    return useHeadphonesOutput() ? headphoneSound : speakerSound;
+  }
+
+  function stopAllSounds() {
+    if (speakerSound.isPlaying) speakerSound.stop();
+    if (headphoneSound.isPlaying) headphoneSound.stop();
+  }
 
   const nowPlaying = document.createElement("div");
   nowPlaying.style.cssText = `
@@ -129,15 +153,23 @@ export async function createBoombox(scene, camera) {
   `;
   document.body.appendChild(nowPlaying);
 
-  sound.onEnded = () => {
+  const onTrackEnded = () => {
     isPlaying = false;
     nowPlaying.style.display = "none";
   };
 
+  speakerSound.onEnded = onTrackEnded;
+  headphoneSound.onEnded = onTrackEnded;
+
   function updateGlow() {
     if (!boombox) return;
 
-    const averageFrequency = isPlaying ? analyser.getAverageFrequency() : 0;
+    const averageFrequency = isPlaying
+      ? Math.max(
+        speakerAnalyser.getAverageFrequency(),
+        headphoneAnalyser.getAverageFrequency()
+      )
+      : 0;
     const targetLevel = averageFrequency / 255;
     const smoothing = targetLevel > smoothedAudioLevel ? 0.32 : 0.08;
     smoothedAudioLevel = THREE.MathUtils.lerp(
@@ -162,46 +194,55 @@ export async function createBoombox(scene, camera) {
     glowFillLight.intensity = isPlaying ? 1.0 + energy * 2.8 : 0;
   }
 
-  document.addEventListener("keydown", (e) => {
-    if (e.code !== "KeyE") return;
-    if (!boombox) return;
-    if (getActiveInteraction() !== "boombox") return;
-
+  function togglePlayback() {
+    const activeSound = getActiveSound();
     const track = RecordBox.selectedTrack;
 
     if (!track) {
       nowPlaying.innerText = "⚠️ Pick a record first";
       nowPlaying.style.display = "block";
       setTimeout(() => nowPlaying.style.display = "none", 3000);
-      return;
+      return { ok: false, reason: "no-track" };
     }
 
     if (isPlaying) {
-      sound.pause();
+      if (speakerSound.isPlaying) speakerSound.pause();
+      if (headphoneSound.isPlaying) headphoneSound.pause();
       isPlaying = false;
       nowPlaying.innerText = `⏸ Paused — ${track.title}`;
       nowPlaying.style.display = "block";
       setTimeout(() => nowPlaying.style.display = "none", 2000);
-      return;
+      return { ok: true, state: "paused", track };
     }
 
-    if (loadedTrackFile === track.file && sound.buffer) {
-      sound.play();
+    if (loadedTrackFile === track.file && activeSound.buffer) {
+      stopAllSounds();
+      activeSound.play();
       isPlaying = true;
       nowPlaying.innerText = `♫ ${track.title} — ${track.artist}`;
       nowPlaying.style.display = "block";
-      return;
+      return { ok: true, state: "playing", track };
     }
 
     audioLoader.load(track.file, (buffer) => {
-      if (sound.isPlaying) sound.stop();
-      sound.setBuffer(buffer);
-      sound.play();
+      stopAllSounds();
+      speakerSound.setBuffer(buffer);
+      headphoneSound.setBuffer(buffer);
+      getActiveSound().play();
       isPlaying = true;
       loadedTrackFile = track.file;
       nowPlaying.innerText = `♫ ${track.title} — ${track.artist}`;
       nowPlaying.style.display = "block";
     });
+
+    return { ok: true, state: "loading", track };
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "KeyE") return;
+    if (!boombox) return;
+    if (getActiveInteraction() !== "boombox") return;
+    togglePlayback();
   });
 
   function update() {
@@ -210,6 +251,13 @@ export async function createBoombox(scene, camera) {
     if (!boombox) return;
     const distance = camera.position.distanceTo(boombox.position);
     const track = RecordBox.selectedTrack;
+
+    const currentOutputMode = useHeadphonesOutput() ? "headphones" : "speaker";
+    if (isPlaying && lastOutputMode !== currentOutputMode && speakerSound.buffer) {
+      stopAllSounds();
+      getActiveSound().play();
+    }
+    lastOutputMode = currentOutputMode;
 
     const now = performance.now();
     if (now - lastLookCheckTime > 80) {
@@ -227,5 +275,11 @@ export async function createBoombox(scene, camera) {
     }
   }
 
-  return { boombox, update };
+  return {
+    boombox,
+    update,
+    togglePlayback,
+    getIsPlaying: () => isPlaying,
+    getCurrentTrack: () => RecordBox.selectedTrack,
+  };
 }
