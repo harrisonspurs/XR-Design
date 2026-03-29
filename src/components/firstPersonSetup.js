@@ -169,11 +169,29 @@ export async function firstPersonSetup(camera, renderer, options = {}) {
 
   const { element: pointerHint } = buildPointerHint();
 
+  // Crosshair element
+  const crosshair = document.createElement("div");
+  crosshair.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.7);
+    pointer-events: none;
+    display: none;
+    z-index: 100;
+  `;
+  document.body.appendChild(crosshair);
+
   const movement = initializeMovementState();
   const handleKey = createInputHandler(movement);
 
   controls.addEventListener("lock", () => {
     pointerHint.style.display = "none";
+    crosshair.style.display = "block";
     focusPointerTarget(pointerElement);
   });
 
@@ -181,6 +199,7 @@ export async function firstPersonSetup(camera, renderer, options = {}) {
     if (!window.__disablePointerLock) {
       pointerHint.style.display = "";
     }
+    crosshair.style.display = "none";
     Object.keys(movement.moveState).forEach((key) => {
       movement.moveState[key] = false;
     });

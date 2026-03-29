@@ -9,6 +9,8 @@ import { createHeadphones } from "./components/createHeadphones.js";
 import { createPhone } from "./components/createPhone.js";
 import { createBeercase } from "./components/createBeercase.js";
 import { createPlayer } from "./components/playerSetup.js";
+import { createCar } from "./components/createCar.js";
+import { loadBar, getBarSpawnPoint } from "./components/createBar.js";
 import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
 
 // Debug flag - set to true to see physics collider meshes
@@ -125,29 +127,19 @@ PhysicsLoader("/ammo", async () => {
   if (DEBUG_LOG_MOVEMENT) physics.debug?.enable();
 
   await createEnvironment(scene, renderer);
-  const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
-  const boomboxController = await createBoombox(scene, camera, getIsWearing);
-  const { update: updateBoombox } = boomboxController;
-  const { update: updateChair, getIsSeated } = await createChair(scene, camera);
-  const { update: updateRecordBox } = await createRecordBox(scene, camera);
-  const { update: updatePhone } = await createPhone(scene, camera, boomboxController);
   
-  // Load rooftop with physics collider
-  await createRooftop(scene, physics);
+  // load house model and get reference for car interaction
+  const houseModel = await createRooftop(scene, physics);
   
   await createBeercase(scene);
 
-  // Player spawn position on the rooftop
+  // player spawn - rooftop
   const playerSpawn = { x: 9, y: 11, z: 1 };
 
-  // Create physics-based player
-  const {
-    playerCollider,
-    update: updatePlayer,
-  } = await createPlayer({
+  const playerController = await createPlayer({
     scene,
     physics,
-    heightBounds: { min: 0, max: 15 },
+    heightBounds: { min: -250, max: 15 },
     terrainData: null,
     camera,
     renderer,
@@ -162,6 +154,24 @@ PhysicsLoader("/ammo", async () => {
     spawnPosition: playerSpawn,
   });
 
+  const { update: updatePlayer } = playerController;
+
+  // interactive objects
+  const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
+  const boomboxController = await createBoombox(scene, camera, getIsWearing);
+  const { update: updateBoombox } = boomboxController;
+  const { update: updateChair, getIsSeated } = await createChair(scene, camera, playerController);
+  const { update: updateRecordBox } = await createRecordBox(scene, camera);
+  const { update: updatePhone } = await createPhone(scene, camera, boomboxController);
+
+  // car - drives to bar
+  const { update: updateCar } = createCar(houseModel, camera, playerController, async () => {
+    // load bar when player arrives
+    await loadBar(scene, physics);
+    const barSpawn = getBarSpawnPoint();
+    playerController.standUp(barSpawn);
+  });
+
   const { update: updateHud } = createPerformanceHud(applyQuality, getQuality);
   const { update: updateShadows } = createShadowOptimizer(scene, camera, getQuality);
 
@@ -174,6 +184,7 @@ PhysicsLoader("/ammo", async () => {
     updateChair();
     updateRecordBox();
     updatePhone();
+    updateCar();
     updateShadows();
     updateHud();
 

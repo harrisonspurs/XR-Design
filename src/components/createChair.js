@@ -2,7 +2,7 @@ import { loadModel } from "./modelLoader.js";
 import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPrompt.js";
 import { isLookingAt } from "./createControls.js";
 
-export async function createChair(scene, camera) {
+export async function createChair(scene, camera, playerController = null) {
 
   const chair = await loadModel(scene, "/models/low-poly_lawn_chair.glb", {
     position: { x: 10.5, y: 9, z: -1 },
@@ -24,14 +24,22 @@ export async function createChair(scene, camera) {
     const distance = camera.position.distanceTo(chair.position);
 
     if (!isSeated && distance <= 3) {
-      camera.position.set(SEATED_POSITION.x, SEATED_POSITION.y, SEATED_POSITION.z);
       isSeated = true;
+      if (playerController && playerController.sitDown) {
+        playerController.sitDown(SEATED_POSITION);
+      } else {
+        camera.position.set(SEATED_POSITION.x, SEATED_POSITION.y, SEATED_POSITION.z);
+      }
       return;
     }
 
     if (isSeated) {
-      camera.position.set(STAND_POSITION.x, STAND_POSITION.y, STAND_POSITION.z);
       isSeated = false;
+      if (playerController && playerController.standUp) {
+        playerController.standUp(STAND_POSITION);
+      } else {
+        camera.position.set(STAND_POSITION.x, STAND_POSITION.y, STAND_POSITION.z);
+      }
     }
   });
 
