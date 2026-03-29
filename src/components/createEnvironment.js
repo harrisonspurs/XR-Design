@@ -60,24 +60,6 @@ export async function createEnvironment(scene, renderer) {
   scene.add(sky);
 
   scene.fog = new THREE.FogExp2(0xff6b35, 0.005);
-
-  // ── Ground Plane ─────────────────────────────────────────────────────────
-
-// ── Ground Plane ─────────────────────────────────────────────────────────
-
-  // Flat solid colour floor — no texture needed for a cartoon aesthetic.
-  // A dark grey/charcoal colour reads instantly as a rooftop in a stylised world.
-  const floorGeometry = new THREE.PlaneGeometry(500, 500);
-  const floorMaterial = new THREE.MeshStandardMaterial({
-    color: 0x2a2a2a, // dark charcoal grey — classic cartoon rooftop colour
-    roughness: 0.9,
-    metalness: 0,
-  });
-
-  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
   
   // ── Lighting ─────────────────────────────────────────────────────────────
 
@@ -107,5 +89,5 @@ export async function createEnvironment(scene, renderer) {
   fillLight.position.set(50, 30, 50);
   scene.add(fillLight);
 
-  return { floor, sunLight };
+  return { sunLight };
 }

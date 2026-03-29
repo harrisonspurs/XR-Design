@@ -1,15 +1,18 @@
 import * as THREE from "three";
 import { createScene } from "./components/createScene.js";
 import { createEnvironment } from "./components/createEnvironment.js";
-import { createControls } from "./components/createControls.js";
 import { createRooftop } from "./components/createRooftop.js";
 import { createBoombox } from "./components/createBoombox.js";
 import { createChair } from "./components/createChair.js";
-import { createCityscape } from "./components/createCityscape.js";
 import { createRecordBox } from "./components/createRecordBox.js";
 import { createHeadphones } from "./components/createHeadphones.js";
 import { createPhone } from "./components/createPhone.js";
 import { createBeercase } from "./components/createBeercase.js";
+import { createPlayer } from "./components/playerSetup.js";
+import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
+
+// Debug flag - set to true to see physics collider meshes
+const DEBUG_LOG_MOVEMENT = false;
 
 function createPerformanceHud(applyQuality, getQuality) {
   const hud = document.createElement("div");
@@ -111,8 +114,16 @@ function createShadowOptimizer(scene, camera, getQuality) {
   return { update };
 }
 
-async function init() {
+// '/ammo' is the folder where all ammo files are
+PhysicsLoader("/ammo", async () => {
+  const clock = new THREE.Clock();
+
   const { scene, camera, renderer, applyQuality, getQuality } = createScene();
+
+  // Set up physics
+  const physics = new AmmoPhysics(scene);
+  if (DEBUG_LOG_MOVEMENT) physics.debug?.enable();
+
   await createEnvironment(scene, renderer);
   const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
   const boomboxController = await createBoombox(scene, camera, getIsWearing);
@@ -120,15 +131,44 @@ async function init() {
   const { update: updateChair, getIsSeated } = await createChair(scene, camera);
   const { update: updateRecordBox } = await createRecordBox(scene, camera);
   const { update: updatePhone } = await createPhone(scene, camera, boomboxController);
-  await createRooftop(scene);
+  
+  // Load rooftop with physics collider
+  await createRooftop(scene, physics);
+  
   await createBeercase(scene);
-  createCityscape(scene);
-  const { update: updateControls } = createControls(camera, renderer, getIsSeated);
+
+  // Player spawn position on the rooftop
+  const playerSpawn = { x: 9, y: 11, z: 1 };
+
+  // Create physics-based player
+  const {
+    playerCollider,
+    update: updatePlayer,
+  } = await createPlayer({
+    scene,
+    physics,
+    heightBounds: { min: 0, max: 15 },
+    terrainData: null,
+    camera,
+    renderer,
+    capsuleRadius: 0.3,
+    playerOptions: {
+      walkAcceleration: 4,
+      sprintAcceleration: 8,
+      jumpSpeed: 5,
+      playerHeight: 1.6,
+      cameraYOffset: 0.5,
+    },
+    spawnPosition: playerSpawn,
+  });
+
   const { update: updateHud } = createPerformanceHud(applyQuality, getQuality);
   const { update: updateShadows } = createShadowOptimizer(scene, camera, getQuality);
 
   renderer.setAnimationLoop(() => {
-    updateControls();
+    const delta = clock.getDelta();
+
+    updatePlayer(delta);
     updateHeadphones();
     updateBoombox();
     updateChair();
@@ -136,8 +176,11 @@ async function init() {
     updatePhone();
     updateShadows();
     updateHud();
+
+    // Update physics
+    physics.update(delta * 1000);
+    if (DEBUG_LOG_MOVEMENT) physics.updateDebugger();
+
     renderer.render(scene, camera);
   });
-}
-
-init().catch(console.error);
+});
