@@ -1,16 +1,12 @@
 import * as THREE from "three";
 
 export function createCityscape(scene) {
-
-  // ── Building Configuration ────────────────────────────────────────────────
   const CITY_RADIUS = 150;      // how far from centre the buildings sit
   const BUILDING_COUNT = 100;   // number of buildings around the perimeter
   const MIN_HEIGHT = 5;        // shortest building height
   const MAX_HEIGHT = 40;       // tallest building height
   const MIN_WIDTH = 6;         // narrowest building
   const MAX_WIDTH = 10;        // widest building
-
-  // Cartoon building colours — dark, moody, urban palette
   const BUILDING_COLOURS = [
     0x1a1a2e,  // deep navy
     0x16213e,  // dark blue
@@ -31,24 +27,16 @@ export function createCityscape(scene) {
     emissive: 0xaaddff,
     emissiveIntensity: 0.75,
   });
-
-  // ── Generate Buildings ────────────────────────────────────────────────────
   for (let i = 0; i < BUILDING_COUNT; i++) {
-
-    // Spread buildings evenly around a circle with some random offset
     const angle = (i / BUILDING_COUNT) * Math.PI * 2;
     const radiusOffset = (Math.random() - 0.5) * 20;
     const radius = CITY_RADIUS + radiusOffset;
 
     const x = Math.cos(angle) * radius;
     const z = Math.sin(angle) * radius;
-
-    // Random building dimensions
     const width  = MIN_WIDTH  + Math.random() * (MAX_WIDTH  - MIN_WIDTH);
     const depth  = MIN_WIDTH  + Math.random() * (MAX_WIDTH  - MIN_WIDTH);
     const height = MIN_HEIGHT + Math.random() * (MAX_HEIGHT - MIN_HEIGHT);
-
-    // ── Building Body ───────────────────────────────────────────────────────
     const buildingGeo = new THREE.BoxGeometry(width, height, depth);
     const buildingMat = new THREE.MeshStandardMaterial({
       color: BUILDING_COLOURS[Math.floor(Math.random() * BUILDING_COLOURS.length)],
@@ -57,20 +45,12 @@ export function createCityscape(scene) {
     });
 
     const building = new THREE.Mesh(buildingGeo, buildingMat);
-
-    // Position building so its base sits on the ground plane
     building.position.set(x, height / 2, z);
     building.castShadow = true;
     building.receiveShadow = true;
     scene.add(building);
-
-    // ── Windows ──────────────────────────────────────────────────────────
-    // Windows are placed on all 4 faces of each building.
-    // Emissive material means they glow without needing light sources.
     const windowRows    = Math.floor(height / 3);
     const windowColumns = Math.floor(width  / 2.5);
-
-    // All 4 face directions
     const faces = [
       { axis: 'z', sign:  1, rot: 0 },
       { axis: 'z', sign: -1, rot: Math.PI },

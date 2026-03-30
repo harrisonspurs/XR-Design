@@ -12,8 +12,6 @@ import { createPlayer } from "./components/playerSetup.js";
 import { createCar } from "./components/createCar.js";
 import { loadBar, getBarSpawnPoint } from "./components/createBar.js";
 import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
-
-// Debug flag - set to true to see physics collider meshes
 const DEBUG_LOG_MOVEMENT = false;
 
 function createPerformanceHud(applyQuality, getQuality) {
@@ -115,25 +113,17 @@ function createShadowOptimizer(scene, camera, getQuality) {
 
   return { update };
 }
-
-// '/ammo' is the folder where all ammo files are
 PhysicsLoader("/ammo", async () => {
   const clock = new THREE.Clock();
 
   const { scene, camera, renderer, applyQuality, getQuality } = createScene();
-
-  // Set up physics
   const physics = new AmmoPhysics(scene);
   if (DEBUG_LOG_MOVEMENT) physics.debug?.enable();
 
   await createEnvironment(scene, renderer);
-  
-  // load house model and get reference for car interaction
   const houseModel = await createRooftop(scene, physics);
   
   await createBeercase(scene);
-
-  // player spawn - rooftop
   const playerSpawn = { x: 9, y: 11, z: 1 };
 
   const playerController = await createPlayer({
@@ -155,18 +145,13 @@ PhysicsLoader("/ammo", async () => {
   });
 
   const { update: updatePlayer } = playerController;
-
-  // interactive objects
   const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
   const boomboxController = await createBoombox(scene, camera, getIsWearing);
   const { update: updateBoombox } = boomboxController;
   const { update: updateChair, getIsSeated } = await createChair(scene, camera, playerController);
   const { update: updateRecordBox } = await createRecordBox(scene, camera);
   const { update: updatePhone } = await createPhone(scene, camera, boomboxController);
-
-  // car - drives to bar
   const { update: updateCar } = createCar(houseModel, camera, playerController, async () => {
-    // load bar when player arrives
     await loadBar(scene, physics);
     const barSpawn = getBarSpawnPoint();
     playerController.standUp(barSpawn);
@@ -176,6 +161,7 @@ PhysicsLoader("/ammo", async () => {
   const { update: updateShadows } = createShadowOptimizer(scene, camera, getQuality);
 
   renderer.setAnimationLoop(() => {
+    // Main frame update loop.
     const delta = clock.getDelta();
 
     updatePlayer(delta);
@@ -187,8 +173,6 @@ PhysicsLoader("/ammo", async () => {
     updateCar();
     updateShadows();
     updateHud();
-
-    // Update physics
     physics.update(delta * 1000);
     if (DEBUG_LOG_MOVEMENT) physics.updateDebugger();
 

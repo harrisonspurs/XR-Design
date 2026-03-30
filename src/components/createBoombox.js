@@ -199,7 +199,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
     const track = RecordBox.selectedTrack;
 
     if (!track) {
-      nowPlaying.innerText = "⚠️ Pick a record first";
+      nowPlaying.innerText = "Pick a record first";
       nowPlaying.style.display = "block";
       setTimeout(() => nowPlaying.style.display = "none", 3000);
       return { ok: false, reason: "no-track" };
@@ -209,7 +209,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
       if (speakerSound.isPlaying) speakerSound.pause();
       if (headphoneSound.isPlaying) headphoneSound.pause();
       isPlaying = false;
-      nowPlaying.innerText = `⏸ Paused — ${track.title}`;
+      nowPlaying.innerText = `Paused - ${track.title}`;
       nowPlaying.style.display = "block";
       setTimeout(() => nowPlaying.style.display = "none", 2000);
       return { ok: true, state: "paused", track };
@@ -219,7 +219,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
       stopAllSounds();
       activeSound.play();
       isPlaying = true;
-      nowPlaying.innerText = `♫ ${track.title} — ${track.artist}`;
+      nowPlaying.innerText = `${track.title} - ${track.artist}`;
       nowPlaying.style.display = "block";
       return { ok: true, state: "playing", track };
     }
@@ -231,7 +231,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
       getActiveSound().play();
       isPlaying = true;
       loadedTrackFile = track.file;
-      nowPlaying.innerText = `♫ ${track.title} — ${track.artist}`;
+      nowPlaying.innerText = `${track.title} - ${track.artist}`;
       nowPlaying.style.display = "block";
     });
 

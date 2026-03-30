@@ -1,16 +1,9 @@
-// createHeadphones.js
-// Headphones model the player can pick up.
-// When worn, music plays in full stereo directly through the listener —
-// simulating the feeling of putting headphones on.
-// This is a great example of spatial audio design in XR.
-
 import * as THREE from "three";
 import { loadModel } from "./modelLoader.js";
 import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPrompt.js";
 import { isLookingAt } from "./createControls.js";
 
 export async function createHeadphones(scene, camera) {
-
   const headphones = await loadModel(scene, "/models/headphones_free.glb", {
     position: { x: -1, y: 1.15, z: 2.8 },
     scale: 0.01,
@@ -30,9 +23,8 @@ export async function createHeadphones(scene, camera) {
   let lastLookCheckTime = 0;
   let cachedIsLooking = false;
 
-  // Visual indicator that headphones are on
   const indicator = document.createElement("div");
-  indicator.innerText = "🎧 Headphones on";
+  indicator.innerText = "Headphones on (H to remove)";
   indicator.style.cssText = `
     position: fixed;
     top: 20px;
@@ -55,6 +47,19 @@ export async function createHeadphones(scene, camera) {
     headphones.visible = false;
     clearPrompt("headphones");
   }
+
+  function removeHeadphones() {
+    if (!headphones || !isWearing) return;
+    isWearing = false;
+    indicator.style.display = "none";
+    headphones.visible = true;
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.repeat) return;
+    if (e.code !== "KeyH") return;
+    removeHeadphones();
+  });
 
   document.addEventListener("mousedown", (e) => {
     if (e.button !== 0) return;

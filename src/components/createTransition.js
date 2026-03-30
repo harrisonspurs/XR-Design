@@ -69,8 +69,6 @@ export function isCurrentlyTransitioning() {
 export function setTransitioning(val) {
   isTransitioning = val;
 }
-
-// camera shake for driving feel
 export function shakeCamera(camera, intensity = 0.02, duration = 2000) {
   const startTime = performance.now();
   const originalPos = camera.position.clone();

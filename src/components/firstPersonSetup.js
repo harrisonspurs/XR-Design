@@ -1,9 +1,7 @@
 import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
-/**
- * Baseline configuration for player movement and capsule characteristics.
- */
+
 const DEFAULT_CONFIG = {
   playerHeight: 1.6,
   gravity: 28,
@@ -15,9 +13,7 @@ const DEFAULT_CONFIG = {
   capsuleMass: 80,
 };
 
-/**
- * Renders a lightweight DOM hint prompting the user to engage pointer lock.
- */
+
 function buildPointerHint() {
   const element = document.createElement("div");
   element.id = "pointer-lock-hint";
@@ -45,9 +41,7 @@ function buildPointerHint() {
   };
 }
 
-/**
- * Constructs the mutable movement state used by both physics and kinematic updates.
- */
+
 function initializeMovementState() {
   return {
     moveState: {
@@ -66,9 +60,7 @@ function initializeMovementState() {
   };
 }
 
-/**
- * Maps keyboard events onto the movement state while capturing jump intents.
- */
+
 function createInputHandler(movement) {
   return (event, isPressed) => {
     switch (event.code) {
@@ -109,26 +101,20 @@ function createInputHandler(movement) {
   };
 }
 
-/**
- * Resets jump-related transient state to avoid stale impulses.
- */
+
 function resetJumpState(movement) {
   movement.pendingJump = false;
   movement.jumpBoost = false;
 }
 
-/**
- * Ensures pointer targets receive focus without scrolling the viewport.
- */
+
 function focusPointerTarget(element) {
   if (element instanceof HTMLElement) {
     element.focus({ preventScroll: true });
   }
 }
 
-/**
- * Configures pointer-lock controls and returns an update loop to drive movement each frame.
- */
+
 export async function firstPersonSetup(camera, renderer, options = {}) {
   const {
     terrainBounds: terrainBoundsOverride = null,
@@ -168,8 +154,6 @@ export async function firstPersonSetup(camera, renderer, options = {}) {
   };
 
   const { element: pointerHint } = buildPointerHint();
-
-  // Crosshair element
   const crosshair = document.createElement("div");
   crosshair.style.cssText = `
     position: fixed;
@@ -228,9 +212,7 @@ export async function firstPersonSetup(camera, renderer, options = {}) {
     target.addEventListener("keyup", keyupListener);
   });
 
-  /**
-   * Kinematic fallback when physics is disabled.
-   */
+  
   function updateKinematicMovement(delta) {
     movement.velocity.x -= movement.velocity.x * config.movementDamping * delta;
     movement.velocity.z -= movement.velocity.z * config.movementDamping * delta;

@@ -1,7 +1,3 @@
-// createPrompt.js
-// Single shared prompt and interaction system.
-// Only one object can be interacted with at a time.
-// This prevents multiple E prompts showing simultaneously.
 
 const prompt = document.createElement("div");
 prompt.style.cssText = `
@@ -33,9 +29,6 @@ export function clearPrompt(id) {
   delete activePrompts[id];
   updatePrompt();
 }
-
-// Returns the ID of the currently highest priority prompt
-// Components check this before handling E key press
 export function getActiveInteraction() {
   const keys = Object.keys(activePrompts);
   if (keys.length === 0) return null;

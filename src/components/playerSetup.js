@@ -37,8 +37,6 @@ export async function createPlayer({
     sprint: false,
     crouch: false,
   };
-
-  // Seated state - when seated, physics is disabled and position is fixed
   let isSeated = false;
   let seatedPosition = null;
 
@@ -94,9 +92,8 @@ export async function createPlayer({
 
   playerCollider.userData.selectable = false;
 
-  const playerMaterials =
-    Array.isArray(playerCollider.material) ?
-      playerCollider.material
+  const playerMaterials = Array.isArray(playerCollider.material)
+    ? playerCollider.material
     : [playerCollider.material];
   playerMaterials.forEach((mat) => {
     if (!mat) return;
@@ -145,9 +142,9 @@ export async function createPlayer({
     dynamicCapsule: playerCollider,
   });
 
-  const _forward = new THREE.Vector3();
-  const _right = new THREE.Vector3();
-  const _velocity = new THREE.Vector3();
+  const forwardDir = new THREE.Vector3();
+  const rightDir = new THREE.Vector3();
+  const movementVelocity = new THREE.Vector3();
 
   function update(delta) {
     if (
@@ -158,35 +155,38 @@ export async function createPlayer({
     ) {
       return;
     }
-
-    // If seated, lock position and skip physics movement
     if (isSeated && seatedPosition) {
       camera.position.set(seatedPosition.x, seatedPosition.y, seatedPosition.z);
       if (player.controls.getObject) {
         player.controls.getObject().position.copy(camera.position);
       }
-      // Keep capsule at seated position but frozen
       const body = playerCollider.body;
       if (body) {
         body.setVelocity(0, 0, 0);
         body.setAngularVelocity(0, 0, 0);
       }
-      playerCollider.position.set(seatedPosition.x, seatedPosition.y - CAMERA_Y_OFFSET, seatedPosition.z);
+      playerCollider.position.set(
+        seatedPosition.x,
+        seatedPosition.y - CAMERA_Y_OFFSET,
+        seatedPosition.z,
+      );
       return;
     }
 
-    camera.getWorldDirection(_forward);
-    _forward.y = 0;
-    _forward.normalize();
-    _right.crossVectors(_forward, camera.up).normalize();
+    camera.getWorldDirection(forwardDir);
+    forwardDir.y = 0;
+    forwardDir.normalize();
+    rightDir.crossVectors(forwardDir, camera.up).normalize();
 
-    _velocity.set(0, 0, 0);
+    movementVelocity.set(0, 0, 0);
     const speed = movement.sprint ? SPRINT_ACCELERATION : WALK_ACCELERATION;
-    if (movement.forward) _velocity.add(_forward);
-    if (movement.backward) _velocity.sub(_forward);
-    if (movement.left) _velocity.sub(_right);
-    if (movement.right) _velocity.add(_right);
-    if (_velocity.lengthSq() > 0) _velocity.normalize().multiplyScalar(speed);
+    if (movement.forward) movementVelocity.add(forwardDir);
+    if (movement.backward) movementVelocity.sub(forwardDir);
+    if (movement.left) movementVelocity.sub(rightDir);
+    if (movement.right) movementVelocity.add(rightDir);
+    if (movementVelocity.lengthSq() > 0) {
+      movementVelocity.normalize().multiplyScalar(speed);
+    }
 
     const body = playerCollider.body;
     if (body) {
@@ -215,19 +215,17 @@ export async function createPlayer({
       }
 
       const currentVel = body.velocity;
-      body.setVelocity(_velocity.x, currentVel.y, _velocity.z);
+      body.setVelocity(movementVelocity.x, currentVel.y, movementVelocity.z);
       const now = performance.now();
       const isGroundedNow = Math.abs(currentVel.y) < 1.0;
       if (isGroundedNow) lastGroundedAt = now;
       const canJumpNow = now - lastGroundedAt < 120;
       if (movement.jump && canJumpNow) {
-        body.setVelocity(_velocity.x, JUMP_SPEED, _velocity.z);
+        body.setVelocity(movementVelocity.x, JUMP_SPEED, movementVelocity.z);
         movement.jump = false;
         lastGroundedAt = 0;
       }
     }
-
-    // Apply crouch offset to camera
     const crouchAdjust = movement.crouch ? -CROUCH_OFFSET : 0;
 
     camera.position.copy(playerCollider.position);
@@ -241,12 +239,9 @@ export async function createPlayer({
       }
     }
   }
-
-  // Functions to control seated state from outside (e.g., chair)
   function sitDown(position) {
     isSeated = true;
     seatedPosition = { ...position };
-    // Stop physics movement
     const body = playerCollider.body;
     if (body) {
       body.setVelocity(0, 0, 0);
@@ -257,12 +252,13 @@ export async function createPlayer({
   function standUp(position) {
     isSeated = false;
     seatedPosition = null;
-    // Move capsule to stand position
     const body = playerCollider.body;
     if (body && body.ammo) {
       const transform = new Ammo.btTransform();
       transform.setIdentity();
-      transform.setOrigin(new Ammo.btVector3(position.x, position.y, position.z));
+      transform.setOrigin(
+        new Ammo.btVector3(position.x, position.y, position.z),
+      );
       body.ammo.setWorldTransform(transform);
       body.ammo.getMotionState().setWorldTransform(transform);
       body.ammo.setLinearVelocity(new Ammo.btVector3(0, 0, 0));
@@ -275,5 +271,14 @@ export async function createPlayer({
     return isSeated;
   }
 
-  return { playerCollider, player, PLAYER_HEIGHT, movement, update, sitDown, standUp, getIsSeated };
+  return {
+    playerCollider,
+    player,
+    PLAYER_HEIGHT,
+    movement,
+    update,
+    sitDown,
+    standUp,
+    getIsSeated,
+  };
 }

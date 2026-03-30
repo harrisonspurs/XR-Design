@@ -10,8 +10,6 @@ import {
   isCurrentlyTransitioning,
   setTransitioning 
 } from "./createTransition.js";
-
-// audio
 let engineSound = null;
 
 function playEngineSound() {
@@ -69,8 +67,6 @@ export function createCar(houseModel, camera, playerController, onArriveAtBar) {
     if (playerController.sitDown) {
       playerController.sitDown(seatPos);
     }
-
-    // engine sound
     playEngineSound();
 
     await new Promise(r => setTimeout(r, 300));

@@ -1,6 +1,4 @@
 import * as THREE from "three";
-
-// Raycaster for checking if player is looking at objects
 const crosshairRaycaster = new THREE.Raycaster();
 const crosshairCenter = new THREE.Vector2(0, 0);
 const raycastMeshesCache = new WeakMap();
@@ -17,10 +15,7 @@ function getRaycastMeshes(object) {
   return meshes;
 }
 
-/**
- * Check if the camera is looking at a specific object
- * Used for interaction prompts (e.g., "Press E to sit")
- */
+
 export function isLookingAt(camera, object, maxDistance = 4) {
   if (!object) return false;
   const maxDistanceSq = maxDistance * maxDistance;

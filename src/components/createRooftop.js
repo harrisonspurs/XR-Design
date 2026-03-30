@@ -29,8 +29,6 @@ export async function createRooftop(scene, physics = null) {
         });
 
         scene.add(model);
-
-        // physics colliders for each mesh
         model.traverse((child) => {
           if (child.isMesh) {
             const wrapper = new ExtendedObject3D();

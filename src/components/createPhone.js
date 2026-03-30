@@ -1,7 +1,3 @@
-// createPhone.js
-// Simple phone pickup + music remote UI.
-// Player can open the phone on rooftop and control boombox playback
-// with the same selected record from the record box.
 
 import * as THREE from "three";
 import { loadModel } from "./modelLoader.js";
@@ -9,8 +5,6 @@ import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPromp
 import { isLookingAt } from "./createControls.js";
 
 export async function createPhone(scene, camera, boomboxController) {
-
-  // ── iPod Model ───────────────────────────────────────────────────────────
   const phone = await loadModel(scene, "/models/ipod_scroll_wheel.glb", {
     position: {  x:1.37, y: 0.6, z: 1.3 },
     scale: 0.0022,
@@ -28,8 +22,6 @@ export async function createPhone(scene, camera, boomboxController) {
     phone.rotation.x = Math.PI * 0.02;
     phone.rotation.z = Math.PI * 0.08;
   }
-
-  // Interaction proxy keeps look checks cheap.
   let proxy = null;
   if (phone) {
     const box = new THREE.Box3().setFromObject(phone);
@@ -47,13 +39,9 @@ export async function createPhone(scene, camera, boomboxController) {
     proxy.position.copy(center);
     scene.add(proxy);
   }
-
-  // ── State ────────────────────────────────────────────────────────────────
   let uiOpen = false;
   let lastLookCheckTime = 0;
   let cachedIsLooking = false;
-
-  // ── UI ───────────────────────────────────────────────────────────────────
   const ui = document.createElement("div");
   ui.style.cssText = `
     position: fixed;
@@ -150,8 +138,6 @@ export async function createPhone(scene, camera, boomboxController) {
     boomboxController.togglePlayback?.();
     setTimeout(refreshLabel, 80);
   });
-
-  // ── Input ────────────────────────────────────────────────────────────────
   document.addEventListener("keydown", (e) => {
     if (e.code === "Escape" && uiOpen) {
       closeUI();
@@ -169,8 +155,6 @@ export async function createPhone(scene, camera, boomboxController) {
 
     uiOpen ? closeUI() : openUI();
   });
-
-  // ── Update ───────────────────────────────────────────────────────────────
   function update() {
     if (!phone) return;
 
