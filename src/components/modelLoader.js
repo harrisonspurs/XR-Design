@@ -5,13 +5,12 @@ import { ExtendedObject3D } from "@enable3d/ammo-physics";
 
 const loader = new GLTFLoader();
 
-
+// Simple model loader - loads a GLTF file and positions it in the scene
+// Using GLTFLoader from THREE.js examples
 export function loadModel(scene, path, options = {}) {
-  const {
-    position = { x: 0, y: 0, z: 0 },
-    scale = 1,
-    rotate = 0,
-  } = options;
+  const position = options.position || { x: 0, y: 0, z: 0 };
+  const scale = options.scale || 1;
+  const rotate = options.rotate || 0;
 
   return new Promise((resolve, reject) => {
     loader.load(
@@ -19,10 +18,12 @@ export function loadModel(scene, path, options = {}) {
       (gltf) => {
         const model = gltf.scene;
 
+        // Position and scale the model
         model.position.set(position.x, position.y, position.z);
         model.scale.setScalar(scale);
         model.rotation.y = rotate;
 
+        // Enable shadows on all mesh parts of the model
         model.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
@@ -48,6 +49,8 @@ export function loadModel(scene, path, options = {}) {
 }
 
 
+// Load a model with physics support (collision detection and physics bodies)
+// This is more complex because we need to: scale, position, and add physics
 export async function loadModelWithPhysics(
   loaderInstance,
   url,
@@ -65,110 +68,140 @@ export async function loadModelWithPhysics(
       let mixer = null;
       let activeAction = null;
       let collider = null;
+
+      // Calculate how big the model is and scale it appropriately
       let bounds = new THREE.Box3().setFromObject(model);
       let size = bounds.getSize(new THREE.Vector3());
       let center = bounds.getCenter(new THREE.Vector3());
+
+      // Find the largest dimension of the model
       const maxAxis = Math.max(size.x, size.y, size.z);
+
+      // Scale the model to the desired size
       if (maxAxis > 0) {
         const scaleFactor = modelSize / maxAxis;
         model.scale.multiplyScalar(scaleFactor);
         model.updateWorldMatrix(true, true);
-        bounds = new THREE.Box3().setFromObject(model);
-        size = bounds.getSize(new THREE.Vector3());
-        center = bounds.getCenter(new THREE.Vector3());
-      } else {
-        model.updateWorldMatrix(true, true);
+
+        // Recalculate bounds after scaling
         bounds = new THREE.Box3().setFromObject(model);
         size = bounds.getSize(new THREE.Vector3());
         center = bounds.getCenter(new THREE.Vector3());
       }
+
+      // Center the model geometry at origin
       model.position.sub(center);
+
+      // Enable shadows on the model
       model.traverse((child) => {
         if (child.isMesh) {
           child.castShadow = true;
           child.receiveShadow = true;
         }
       });
-      const basePos = new THREE.Vector3(0, 0, 0);
+
+      // Get the base position for this model
+      let basePos = new THREE.Vector3(0, 0, 0);
       if (position instanceof THREE.Vector3) {
         basePos.copy(position);
       } else if (position) {
-        basePos.set(position.x ?? 0, position.y ?? 0, position.z ?? 0);
+        basePos.x = position.x || 0;
+        basePos.y = position.y || 0;
+        basePos.z = position.z || 0;
       }
-      const colliderOff =
-        options.colliderOffset ?
-          options.colliderOffset instanceof THREE.Vector3 ?
-            options.colliderOffset
-          : new THREE.Vector3(
-              options.colliderOffset.x || 0,
-              options.colliderOffset.y || 0,
-              options.colliderOffset.z || 0,
-            )
-        : new THREE.Vector3();
 
-      const modelOff =
-        options.modelOffset ?
-          options.modelOffset instanceof THREE.Vector3 ?
-            options.modelOffset
-          : new THREE.Vector3(
-              options.modelOffset.x || 0,
-              options.modelOffset.y || 0,
-              options.modelOffset.z || 0,
-            )
-        : new THREE.Vector3();
+      // Get optional offset for the collider (shifts where collision happens)
+      let colliderOffset = new THREE.Vector3(0, 0, 0);
+      if (options.colliderOffset) {
+        if (options.colliderOffset instanceof THREE.Vector3) {
+          colliderOffset.copy(options.colliderOffset);
+        } else {
+          colliderOffset.x = options.colliderOffset.x || 0;
+          colliderOffset.y = options.colliderOffset.y || 0;
+          colliderOffset.z = options.colliderOffset.z || 0;
+        }
+      }
 
-      const colliderPosition = basePos.clone().add(colliderOff);
+      // Get optional offset for the visible model
+      let modelOffset = new THREE.Vector3(0, 0, 0);
+      if (options.modelOffset) {
+        if (options.modelOffset instanceof THREE.Vector3) {
+          modelOffset.copy(options.modelOffset);
+        } else {
+          modelOffset.x = options.modelOffset.x || 0;
+          modelOffset.y = options.modelOffset.y || 0;
+          modelOffset.z = options.modelOffset.z || 0;
+        }
+      }
+
+      // Handle rotation if provided
       let finalQuat = new THREE.Quaternion();
       if (options.rotation) {
-        const r =
-          options.rotation instanceof THREE.Vector3 ?
-            new THREE.Euler(
-              options.rotation.x,
-              options.rotation.y,
-              options.rotation.z,
-            )
-          : new THREE.Euler(
-              options.rotation.x || 0,
-              options.rotation.y || 0,
-              options.rotation.z || 0,
-            );
-        finalQuat.setFromEuler(r);
+        let rotation = options.rotation;
+        let euler;
+
+        if (rotation instanceof THREE.Vector3) {
+          euler = new THREE.Euler(rotation.x, rotation.y, rotation.z);
+        } else {
+          euler = new THREE.Euler(
+            rotation.x || 0,
+            rotation.y || 0,
+            rotation.z || 0
+          );
+        }
+
+        finalQuat.setFromEuler(euler);
       }
+
       model.quaternion.copy(finalQuat);
 
+      // If physics is enabled, create a physics body for this model
       if (physics) {
-        const mass = typeof options.mass === "number" ? options.mass : 0;
+        const mass = options.mass || 0;
+
+        // Create a wrapper object to hold both the model and physics body
         const wrapper = new ExtendedObject3D();
         wrapper.position.set(
-          colliderPosition.x,
-          colliderPosition.y + (size.y || 1) / 2,
-          colliderPosition.z,
+          basePos.x + colliderOffset.x,
+          basePos.y + colliderOffset.y + (size.y || 1) / 2,
+          basePos.z + colliderOffset.z
         );
-        if (finalQuat) wrapper.quaternion.copy(finalQuat);
-        model.position.set(0, -center.y, 0);
-        model.position.add(colliderOff.clone().negate());
-        model.position.add(modelOff);
-        wrapper.add(model);
+        wrapper.quaternion.copy(finalQuat);
 
+        // Position the model inside the wrapper
+        model.position.set(0, -center.y, 0);
+        // Apply offsets to the model
+        model.position.x -= colliderOffset.x;
+        model.position.y -= colliderOffset.y;
+        model.position.z -= colliderOffset.z;
+        model.position.add(modelOffset);
+
+        wrapper.add(model);
         scene.add(wrapper);
 
+        // Add physics to the wrapper
         physics.add.existing(wrapper, {
           shape: options.shape || "concave",
           width: size.x || 1,
           height: size.y || 1,
           depth: size.z || 1,
-          mass,
+          mass: mass,
         });
+
+        // If this is a static object (mass=0), set it to sleep
         if (mass === 0 && wrapper.body?.ammo) {
           wrapper.body.ammo.setActivationState(4);
         }
 
         collider = wrapper;
       } else {
-        const worldPos = basePos.clone().add(modelOff);
-        model.position.add(worldPos);
+        // No physics - just add the model to the scene
+        model.position.add(basePos);
+        model.position.add(modelOffset);
         scene.add(model);
       }
+
+      // Handle animations if the model has them
       if (gltf.animations && gltf.animations.length > 0) {
         mixer = new THREE.AnimationMixer(model);
         const clip = gltf.animations[0];
@@ -179,7 +212,13 @@ export async function loadModelWithPhysics(
       }
 
       console.log(`[modelLoader] Loaded with physics: ${url}`);
-      resolve({ model, mixer, activeAction, collider, clips: gltf.animations });
+      resolve({
+        model,
+        mixer,
+        activeAction,
+        collider,
+        clips: gltf.animations,
+      });
     }, undefined, reject);
   });
 }

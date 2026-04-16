@@ -1,7 +1,10 @@
 import * as THREE from "three";
+// Using THREE.js PointerLockControls for first-person camera movement
+// This library handles mouse look and pointer locking
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 
-
+// Default configuration values for player movement and controls
+// These can be overridden when setting up the player
 const DEFAULT_CONFIG = {
   playerHeight: 1.6,
   gravity: 28,
@@ -13,7 +16,7 @@ const DEFAULT_CONFIG = {
   capsuleMass: 80,
 };
 
-
+// Create the hint text that tells players how to enter first-person mode
 function buildPointerHint() {
   const element = document.createElement("div");
   element.id = "pointer-lock-hint";
@@ -41,7 +44,7 @@ function buildPointerHint() {
   };
 }
 
-
+// Initialize the movement state tracking object
 function initializeMovementState() {
   return {
     moveState: {

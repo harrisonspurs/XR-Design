@@ -2,7 +2,10 @@ import * as THREE from "three";
 import { loadModel } from "./modelLoader.js";
 import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPrompt.js";
 import { isLookingAt } from "./createControls.js";
+import "../styles/recordBox.css";
 
+// Create an interactive record box that plays music from a playlist
+// The record box has a UI for selecting tracks and shows album art
 const ALBUM_PASSWORD = import.meta.env.VITE_ALBUM_PASSWORD || "";
 const LOCKED_TRACKS_RAW = import.meta.env.VITE_LOCKED_TRACKS || "";
 
@@ -10,12 +13,14 @@ const LOCKED_TRACKS = LOCKED_TRACKS_RAW.split(",")
   .map((name) => name.trim().toLowerCase())
   .filter(Boolean);
 
+// Helper function to extract filename from a path
 function getFileName(path) {
   if (!path) return "";
   const parts = path.split("/");
   return (parts[parts.length - 1] || "").toLowerCase();
 }
 
+// Check if a track is locked
 function isLockedTrack(track) {
   const fileName = getFileName(track?.file);
   return LOCKED_TRACKS.includes(fileName);
@@ -162,105 +167,40 @@ export async function createRecordBox(scene, camera) {
   let lastLookCheckTime = 0;
   let cachedIsLooking = false;
   const ui = document.createElement("div");
-  ui.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(10,10,10,0.92);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 20px;
-    padding: 30px 40px;
-    display: none;
-    z-index: 100;
-    font-family: sans-serif;
-    color: white;
-    text-align: center;
-    min-width: 340px;
-    user-select: none;
-  `;
+  ui.className = "record-box-ui";
   document.body.appendChild(ui);
   const heading = document.createElement("div");
   heading.innerText = "Record Box";
-  heading.style.cssText = `
-    font-size: 16px;
-    font-weight: bold;
-    letter-spacing: 2px;
-    margin-bottom: 24px;
-    color: rgba(255,255,255,0.6);
-    text-transform: uppercase;
-  `;
+  heading.className = "record-box-heading";
   ui.appendChild(heading);
   const artContainer = document.createElement("div");
-  artContainer.style.cssText = `
-    position: relative;
-    width: 220px;
-    height: 220px;
-    margin: 0 auto 20px;
-    cursor: grab;
-  `;
+  artContainer.className = "record-box-art-container";
   ui.appendChild(artContainer);
 
   const artImg = document.createElement("img");
-  artImg.style.cssText = `
-    width: 220px;
-    height: 220px;
-    object-fit: cover;
-    border-radius: 8px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-    display: block;
-    pointer-events: none;
-  `;
+  artImg.className = "record-box-art-img";
   artContainer.appendChild(artImg);
   const trackTitle = document.createElement("div");
-  trackTitle.style.cssText = `
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 4px;
-  `;
+  trackTitle.className = "record-box-track-title";
   ui.appendChild(trackTitle);
 
   const trackArtist = document.createElement("div");
-  trackArtist.style.cssText = `
-    font-size: 13px;
-    color: rgba(255,255,255,0.5);
-    margin-bottom: 24px;
-  `;
+  trackArtist.className = "record-box-track-artist";
   ui.appendChild(trackArtist);
   const navRow = document.createElement("div");
-  navRow.style.cssText = `
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 30px;
-    margin-bottom: 20px;
-  `;
+  navRow.className = "record-box-nav-row";
   ui.appendChild(navRow);
 
   function makeArrow(label, onClick) {
     const btn = document.createElement("div");
     btn.innerText = label;
-    btn.style.cssText = `
-      font-size: 28px;
-      cursor: pointer;
-      color: rgba(255,255,255,0.7);
-      padding: 8px 16px;
-      border-radius: 8px;
-      background: rgba(255,255,255,0.05);
-      transition: background 0.2s;
-    `;
-    btn.addEventListener("mouseenter", () => {
-      btn.style.background = "rgba(255,150,50,0.3)";
-    });
-    btn.addEventListener("mouseleave", () => {
-      btn.style.background = "rgba(255,255,255,0.05)";
-    });
+    btn.className = "record-box-arrow-btn";
     btn.addEventListener("click", onClick);
     return btn;
   }
 
   const counter = document.createElement("div");
-  counter.style.cssText = `font-size: 13px; color: rgba(255,255,255,0.4);`;
+  counter.className = "record-box-counter";
 
   navRow.appendChild(makeArrow("<", () => navigate(-1)));
   navRow.appendChild(counter);

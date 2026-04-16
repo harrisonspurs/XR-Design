@@ -11,6 +11,8 @@ import { createBeercase } from "./components/createBeercase.js";
 import { createPlayer } from "./components/playerSetup.js";
 import { createCar } from "./components/createCar.js";
 import { loadBar, getBarSpawnPoint } from "./components/createBar.js";
+import { createPortalGun } from "./components/createPortalGun.js";
+import { createJake } from "./components/createJake.js";
 import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
 const DEBUG_LOG_MOVEMENT = false;
 
@@ -151,8 +153,16 @@ PhysicsLoader("/ammo", async () => {
   const { update: updateChair, getIsSeated } = await createChair(scene, camera, playerController);
   const { update: updateRecordBox } = await createRecordBox(scene, camera);
   const { update: updatePhone } = await createPhone(scene, camera, boomboxController);
+
+  let updatePortalGun = () => {}; // Will be set when bar loads
+  let updateJake = () => {}; // Will be set when bar loads
+
   const { update: updateCar } = createCar(houseModel, camera, playerController, async () => {
     await loadBar(scene, physics);
+    const { update: updatePG } = await createPortalGun(scene, camera);
+    const { update: updateJ } = await createJake(scene);
+    updatePortalGun = updatePG;
+    updateJake = updateJ;
     const barSpawn = getBarSpawnPoint();
     playerController.standUp(barSpawn);
   });
@@ -171,6 +181,8 @@ PhysicsLoader("/ammo", async () => {
     updateRecordBox();
     updatePhone();
     updateCar();
+    updatePortalGun();
+    updateJake(delta);
     updateShadows();
     updateHud();
     physics.update(delta * 1000);

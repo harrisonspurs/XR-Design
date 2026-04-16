@@ -1,0 +1,95 @@
+/* Record Box UI Styles */
+
+/* Main container for the record box player interface */
+.record-box-ui {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 30px 40px;
+  display: none;
+  z-index: 100;
+  font-family: sans-serif;
+  color: white;
+  text-align: center;
+  min-width: 340px;
+  user-select: none;
+}
+
+/* Title heading */
+.record-box-heading {
+  font-size: 16px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  margin-bottom: 24px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+}
+
+/* Container for album artwork */
+.record-box-art-container {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 0 auto 20px;
+  cursor: grab;
+}
+
+/* Album artwork image */
+.record-box-art-img {
+  width: 220px;
+  height: 220px;
+  object-fit: cover;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  display: block;
+  pointer-events: none;
+}
+
+/* Track title text */
+.record-box-track-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+/* Track artist name */
+.record-box-track-artist {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 24px;
+}
+
+/* Navigation row (previous/next buttons and counter) */
+.record-box-nav-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  margin-bottom: 20px;
+}
+
+/* Navigation arrow buttons (previous/next) */
+.record-box-arrow-btn {
+  font-size: 28px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: background 0.2s;
+}
+
+/* Hover state for arrow buttons */
+.record-box-arrow-btn:hover {
+  background: rgba(255, 150, 50, 0.3);
+}
+
+/* Track counter display */
+.record-box-counter {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.4);
+}

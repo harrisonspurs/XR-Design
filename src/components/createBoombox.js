@@ -4,14 +4,17 @@ import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPromp
 import { isLookingAt } from "./createControls.js";
 import * as RecordBox from "./createRecordBox.js";
 
+// Create an interactive boombox that plays music
+// The boombox is positioned on the rooftop and can be interacted with
 export async function createBoombox(scene, camera, getIsWearingHeadphones = () => false) {
-
+  // Load the boombox 3D model
   const boombox = await loadModel(scene, "/models/classic_boombox.glb", {
     position: { x: 2, y: 0.6, z: 3.2 },
     scale: 0.07,
     rotate: 1,
   });
 
+  // Position the boombox on the rooftop
   if (boombox) {
     const box = new THREE.Box3().setFromObject(boombox);
     const center = box.getCenter(new THREE.Vector3());
@@ -19,13 +22,16 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
     boombox.position.x = 9 - center.x;
     boombox.position.z = 1 - center.z;
     boombox.position.y = 10.5 - bottom;
+    // Color the boombox wood part
     boombox.children[0].children[0].children[1].material.color = new THREE.Color(0x8b4513);
   }
 
+  // Set up glowing parts of the boombox (speakers, lights, etc.)
   const glowTargets = [];
   const glowColor = new THREE.Color(0xff5a1f);
   const mixedColor = new THREE.Color();
 
+  // Names of parts that should glow to make the boombox look more lively
   const emissivePartMatchers = [
     "speaker",
     "ring",
@@ -38,6 +44,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
     "dial",
   ];
 
+  // Check if a part should glow based on its name
   function shouldGlowPart(child, material) {
     const meshName = (child.name || "").toLowerCase();
     const materialName = (material?.name || "").toLowerCase();
@@ -46,6 +53,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
     );
   }
 
+  // Make glowing parts emit light
   if (boombox) {
     boombox.traverse((child) => {
       if (!child.isMesh || !child.material) return;
@@ -59,6 +67,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
 
         if (!shouldGlowPart(child, mat)) return mat;
 
+        // Clone the material so we can modify it without affecting other objects
         const clone = mat.clone();
         glowTargets.push({
           material: clone,
@@ -74,6 +83,7 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
     });
   }
 
+  // Add lights to make the boombox glow
   const glowLight = new THREE.PointLight(0xff6a2a, 0, 9.5, 1.5);
   const glowFillLight = new THREE.PointLight(0xff8a42, 0, 18, 1.05);
   if (boombox) {
