@@ -7,12 +7,11 @@ import { createChair } from "./components/createChair.js";
 import { createRecordBox } from "./components/createRecordBox.js";
 import { createHeadphones } from "./components/createHeadphones.js";
 import { createPhone } from "./components/createPhone.js";
-import { createBeercase } from "./components/createBeercase.js";
 import { createPlayer } from "./components/playerSetup.js";
 import { createCar } from "./components/createCar.js";
 import { loadBar, getBarSpawnPoint } from "./components/createBar.js";
 import { createPortalGun } from "./components/createPortalGun.js";
-import { createJake } from "./components/createJake.js";
+import { createRick } from "./components/createRick.js";
 import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
 const DEBUG_LOG_MOVEMENT = false;
 
@@ -124,8 +123,7 @@ PhysicsLoader("/ammo", async () => {
 
   await createEnvironment(scene, renderer);
   const houseModel = await createRooftop(scene, physics);
-  
-  await createBeercase(scene);
+
   const playerSpawn = { x: 9, y: 11, z: 1 };
 
   const playerController = await createPlayer({
@@ -155,20 +153,38 @@ PhysicsLoader("/ammo", async () => {
   const { update: updatePhone } = await createPhone(scene, camera, boomboxController);
 
   let updatePortalGun = () => {}; // Will be set when bar loads
-  let updateJake = () => {}; // Will be set when bar loads
+  let updateRick = () => {}; // Will be set when bar loads
 
   const { update: updateCar } = createCar(houseModel, camera, playerController, async () => {
     await loadBar(scene, physics);
     const { update: updatePG } = await createPortalGun(scene, camera);
-    const { update: updateJ } = await createJake(scene);
+    const rick = await createRick(scene, physics);
+    const { update: updateR } = rick;
     updatePortalGun = updatePG;
-    updateJake = updateJ;
+    updateRick = updateR;
     const barSpawn = getBarSpawnPoint();
     playerController.standUp(barSpawn);
+
+    // Make Rick interactive with 'E' key
+    window.rickCharacter = rick;
   });
 
   const { update: updateHud } = createPerformanceHud(applyQuality, getQuality);
   const { update: updateShadows } = createShadowOptimizer(scene, camera, getQuality);
+
+  // Rick interaction listener
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "KeyE" && window.rickCharacter) {
+      // Check if player is close enough to Rick (roughly 10 units away)
+      const playerPos = playerController.position;
+      const rickPos = window.rickCharacter.model.position;
+      const distance = playerPos.distanceTo(rickPos);
+
+      if (distance < 10) {
+        window.rickCharacter.interact();
+      }
+    }
+  });
 
   renderer.setAnimationLoop(() => {
     // Main frame update loop.
@@ -182,7 +198,7 @@ PhysicsLoader("/ammo", async () => {
     updatePhone();
     updateCar();
     updatePortalGun();
-    updateJake(delta);
+    updateRick(delta);
     updateShadows();
     updateHud();
     physics.update(delta * 1000);
