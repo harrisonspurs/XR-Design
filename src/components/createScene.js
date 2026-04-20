@@ -66,8 +66,10 @@ export function createScene() {
   // Add the renderer to the page
   document.body.appendChild(renderer.domElement);
 
-  // Add VR button for entering XR mode
-  document.body.appendChild(XRButton.createButton(renderer));
+  // Add VR button only if XR is supported
+  if (navigator.xr) {
+    document.body.appendChild(XRButton.createButton(renderer));
+  }
 
   // Handle window resizing to keep the canvas proportional
   window.addEventListener("resize", () => {

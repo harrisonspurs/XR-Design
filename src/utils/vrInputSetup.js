@@ -1,8 +1,22 @@
-export function setupVRInput(renderer, playerMovement) {
+export function setupVRInput(renderer, playerMovement, playerCollider) {
+  let vrJustStarted = false;
+
   // Update controller input each frame
   const originalSetAnimationLoop = renderer.setAnimationLoop.bind(renderer);
   renderer.setAnimationLoop = function (callback) {
     return originalSetAnimationLoop((time, frame) => {
+      // Teleport player to origin when VR starts
+      if (frame && renderer.xr.isPresenting && !vrJustStarted) {
+        vrJustStarted = true;
+        console.log("[VR] Moving player to ground level at origin");
+        playerCollider.position.set(0, 0, 0);
+      }
+
+      // Reset flag when leaving VR
+      if (!renderer.xr.isPresenting) {
+        vrJustStarted = false;
+      }
+
       // Only process VR input if in XR mode
       if (frame && renderer.xr.isPresenting) {
         const session = frame.session;
