@@ -12,6 +12,7 @@ import { createCar } from "./components/createCar.js";
 import { loadBar, getBarSpawnPoint } from "./components/createBar.js";
 import { createPortalGun } from "./components/createPortalGun.js";
 import { createRick } from "./components/createRick.js";
+import { getActiveInteraction } from "./components/createPrompt.js";
 import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
 const DEBUG_LOG_MOVEMENT = false;
 
@@ -19,17 +20,17 @@ function createPerformanceHud(applyQuality, getQuality) {
   const hud = document.createElement("div");
   hud.style.cssText = `
     position: fixed;
-    top: 14px;
-    right: 14px;
+    top: 10px;
+    right: 10px;
     z-index: 200;
-    color: #ffe8d1;
-    background: rgba(0,0,0,0.6);
-    border: 1px solid rgba(255, 140, 70, 0.35);
-    border-radius: 10px;
-    padding: 8px 10px;
+    color: white;
+    background: black;
+    border: 1px solid #666;
+    border-radius: 5px;
+    padding: 8px 12px;
     font-family: monospace;
     font-size: 12px;
-    line-height: 1.45;
+    line-height: 1.4;
     pointer-events: none;
   `;
   document.body.appendChild(hud);
@@ -67,9 +68,11 @@ function createPerformanceHud(applyQuality, getQuality) {
 }
 
 function createShadowOptimizer(scene, camera, getQuality) {
+  // Track all meshes that cast/receive shadows
   const trackedMeshes = [];
   const tmpWorldPosition = new THREE.Vector3();
 
+  // Find all meshes in the scene that have shadows enabled
   scene.traverse((object) => {
     if (!object.isMesh) return;
     if (!object.castShadow && !object.receiveShadow) return;
@@ -82,21 +85,25 @@ function createShadowOptimizer(scene, camera, getQuality) {
   });
 
   let lastRefresh = 0;
-  const maxShadowDistance = {
-    high: 50,
-    medium: 36,
-    low: 0,
-  };
 
   function update() {
     const now = performance.now();
-    if (now - lastRefresh < 250) return;
+    if (now - lastRefresh < 250) return; // Only check every 250ms
     lastRefresh = now;
 
     const quality = getQuality();
-    const maxDistance = maxShadowDistance[quality] ?? 36;
+
+    // Determine shadow distance based on quality setting
+    let maxDistance = 36; // Default for medium quality
+    if (quality === "high") {
+      maxDistance = 50;
+    } else if (quality === "low") {
+      maxDistance = 0; // No shadows for low quality
+    }
+
     const maxDistanceSq = maxDistance * maxDistance;
 
+    // Check each mesh and enable/disable shadows based on distance
     for (const entry of trackedMeshes) {
       const { mesh, baseCastShadow, baseReceiveShadow } = entry;
 
@@ -105,6 +112,8 @@ function createShadowOptimizer(scene, camera, getQuality) {
       const dy = camera.position.y - tmpWorldPosition.y;
       const dz = camera.position.z - tmpWorldPosition.z;
       const distanceSq = dx * dx + dy * dy + dz * dz;
+
+      // Only show shadows if object is close enough
       const inRange = quality !== "low" && distanceSq <= maxDistanceSq;
 
       mesh.castShadow = baseCastShadow && inRange;
@@ -158,7 +167,7 @@ PhysicsLoader("/ammo", async () => {
   const { update: updateCar } = createCar(houseModel, camera, playerController, async () => {
     await loadBar(scene, physics);
     const { update: updatePG } = await createPortalGun(scene, camera);
-    const rick = await createRick(scene, physics);
+    const rick = await createRick(scene, physics, camera);
     const { update: updateR } = rick;
     updatePortalGun = updatePG;
     updateRick = updateR;
@@ -174,15 +183,19 @@ PhysicsLoader("/ammo", async () => {
 
   // Rick interaction listener
   document.addEventListener("keydown", (e) => {
-    if (e.code === "KeyE" && window.rickCharacter) {
-      // Check if player is close enough to Rick (roughly 10 units away)
-      const playerPos = playerController.position;
-      const rickPos = window.rickCharacter.model.position;
-      const distance = playerPos.distanceTo(rickPos);
+    if (e.code !== "KeyE") return;
+    if (!window.rickCharacter) return;
 
-      if (distance < 10) {
-        window.rickCharacter.interact();
-      }
+    // Only allow interaction if rick prompt is active or dialog is open
+    const activeInteraction = getActiveInteraction();
+    if (activeInteraction !== "rick" && !window.rickCharacter.isDialogOpen()) return;
+
+    const playerPos = camera.position;
+    const rickPos = window.rickCharacter.model.position;
+    const distance = playerPos.distanceTo(rickPos);
+
+    if (distance < 10) {
+      window.rickCharacter.interact();
     }
   });
 
