@@ -12,7 +12,8 @@
     "vite": "^8.0.0-beta.13"
   },
   "overrides": {
-    "vite": "^8.0.0-beta.13"
+    "vite": "^8.0.0-beta.13",
+    "three": "^0.183.1"
   },
   "dependencies": {
     "@enable3d/ammo-physics": "^0.26.1",
