@@ -20,6 +20,10 @@ export function createScene() {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
 
+  // Enable VR support
+  renderer.xr.enabled = true;
+  renderer.xr.setReferenceSpaceType("local");
+
   // Set up color space and tone mapping for realistic lighting
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;

@@ -14,6 +14,7 @@ import { createPortalGun } from "./components/createPortalGun.js";
 import { createGarage } from "./components/createGarage.js";
 import { createRick } from "./components/createRick.js";
 import { getActiveInteraction } from "./components/createPrompt.js";
+import { setupVRInput } from "./utils/vrInputSetup.js";
 import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
 const DEBUG_LOG_MOVEMENT = false;
 
@@ -155,6 +156,9 @@ PhysicsLoader("/ammo", async () => {
   });
 
   const { update: updatePlayer } = playerController;
+
+  // Set up VR controller input
+  setupVRInput(renderer, playerController.movement);
   const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
   const boomboxController = await createBoombox(scene, camera, getIsWearing);
   const { update: updateBoombox } = boomboxController;
