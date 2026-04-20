@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { XRButton } from "three/examples/jsm/webxr/XRButton.js";
 
 // Create the main THREE.js scene, camera, and renderer for the 3D world
 export function createScene() {
@@ -64,6 +65,9 @@ export function createScene() {
 
   // Add the renderer to the page
   document.body.appendChild(renderer.domElement);
+
+  // Add VR button for entering XR mode
+  document.body.appendChild(XRButton.createButton(renderer));
 
   // Handle window resizing to keep the canvas proportional
   window.addEventListener("resize", () => {
