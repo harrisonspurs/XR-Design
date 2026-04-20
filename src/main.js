@@ -11,6 +11,7 @@ import { createPlayer } from "./components/playerSetup.js";
 import { createCar } from "./components/createCar.js";
 import { loadBar, getBarSpawnPoint } from "./components/createBar.js";
 import { createPortalGun } from "./components/createPortalGun.js";
+import { createGarage } from "./components/createGarage.js";
 import { createRick } from "./components/createRick.js";
 import { getActiveInteraction } from "./components/createPrompt.js";
 import { AmmoPhysics, PhysicsLoader } from "@enable3d/ammo-physics";
@@ -163,16 +164,26 @@ PhysicsLoader("/ammo", async () => {
 
   let updatePortalGun = () => {}; // Will be set when bar loads
   let updateRick = () => {}; // Will be set when bar loads
+  let updateGarage = () => {}; // Will be set when garage loads
+  let garageState = { morty: null }; // Track garage objects
 
   const { update: updateCar } = createCar(houseModel, camera, playerController, async () => {
     await loadBar(scene, physics);
-    const { update: updatePG } = await createPortalGun(scene, camera);
+    const { update: updatePG, setOnUse } = await createPortalGun(scene, camera);
     const rick = await createRick(scene, physics, camera);
     const { update: updateR } = rick;
     updatePortalGun = updatePG;
     updateRick = updateR;
     const barSpawn = getBarSpawnPoint();
     playerController.standUp(barSpawn);
+
+    // Setup portal gun to load garage when used
+    setOnUse(async () => {
+      const { update: updateG, morty } = await createGarage(scene, camera, playerController, physics);
+      updateGarage = updateG;
+      garageState.morty = morty;
+      console.log("[Main] Garage loaded with Morty");
+    });
 
     // Make Rick interactive with 'E' key
     window.rickCharacter = rick;
@@ -199,6 +210,24 @@ PhysicsLoader("/ammo", async () => {
     }
   });
 
+  // Morty interaction listener
+  document.addEventListener("keydown", (e) => {
+    if (e.code !== "KeyE") return;
+    if (!garageState.morty) return;
+
+    // Only allow interaction if morty prompt is active or dialog is open
+    const activeInteraction = getActiveInteraction();
+    if (activeInteraction !== "morty" && !garageState.morty.isDialogOpen()) return;
+
+    const playerPos = camera.position;
+    const mortyPos = garageState.morty.model.position;
+    const distance = playerPos.distanceTo(mortyPos);
+
+    if (distance < 10) {
+      garageState.morty.interact();
+    }
+  });
+
   renderer.setAnimationLoop(() => {
     // Main frame update loop.
     const delta = clock.getDelta();
@@ -212,6 +241,7 @@ PhysicsLoader("/ammo", async () => {
     updateCar();
     updatePortalGun();
     updateRick(delta);
+    updateGarage(delta);
     updateShadows();
     updateHud();
     physics.update(delta * 1000);

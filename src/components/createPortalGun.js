@@ -20,15 +20,13 @@ export async function createPortalGun(scene, camera, positionOverride = null) {
   if (positionOverride) {
     portalGun.position.copy(positionOverride);
   } else {
-    // Position directly in front of the bar spawn point (where player enters the bar)
-    const barSpawn = getBarSpawnPoint();
-    portalGun.position.set(barSpawn.x + 3, barSpawn.y - 0.88, barSpawn.z - 11);
-    console.log("[createPortalGun] Bar spawn point:", barSpawn);
-    console.log("[createPortalGun] Portal gun position:", portalGun.position);
+    // Position the portal gun at the saved location in the bar
+    portalGun.position.set(4.48, -197.00, -34.41);
   }
-  portalGun.rotation.x = Math.PI / 1.6 ; // Rotate slightly for better viewing
+  portalGun.rotation.x = 1.96;
+  portalGun.rotation.z = 0.60;
 
-  console.log("[createPortalGun] Portal gun loaded:", portalGun);
+  console.log("[createPortalGun] Portal gun loaded at bar");
   console.log("[createPortalGun] Portal gun scale:", portalGun.scale);
 
   // Create an interaction proxy for raycasting
@@ -49,9 +47,60 @@ export async function createPortalGun(scene, camera, positionOverride = null) {
 
   let lastLookCheckTime = 0;
   let cachedIsLooking = false;
+  let isPickedUp = false;
+  let onUseCallback = null;
+
+  // Create audio for portal gun
+  const portalGunSound = new Audio("/audio/portal-gun-sound-effect.mp3");
+  portalGunSound.volume = 0.7;
+
+  // Create UI for when portal gun is picked up
+  const pickupUI = document.createElement("div");
+  pickupUI.style.cssText = `
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: black;
+    color: white;
+    border: 1px solid #666;
+    padding: 10px 15px;
+    font-family: monospace;
+    font-size: 14px;
+    border-radius: 5px;
+    display: none;
+    z-index: 100;
+  `;
+  pickupUI.textContent = "Press R to use Portal Gun";
+  document.body.appendChild(pickupUI);
+
+  // E key listener for picking up the portal gun
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "KeyE" && !isPickedUp && distance <= 5 && cachedIsLooking) {
+      isPickedUp = true;
+      portalGun.visible = false;
+      pickupUI.style.display = "block";
+      clearPrompt("portalgun");
+    }
+  });
+
+  // R key listener for using the portal gun
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "KeyR" && isPickedUp) {
+      console.log("[Portal Gun] Rick used the Portal Gun!");
+      portalGunSound.currentTime = 0;
+      portalGunSound.play();
+      pickupUI.style.display = "none";
+      if (onUseCallback) {
+        onUseCallback();
+      }
+    }
+  });
+
+  let distance = 0;
 
   function update() {
-    const distance = camera.position.distanceTo(portalGun.position);
+    distance = camera.position.distanceTo(portalGun.position);
     const now = performance.now();
 
     // Check if player is looking at the gun (throttled to avoid performance issues)
@@ -60,13 +109,13 @@ export async function createPortalGun(scene, camera, positionOverride = null) {
       lastLookCheckTime = now;
     }
 
-    // Show interaction prompt if close and looking at it
-    if (distance <= 5 && cachedIsLooking) {
-      registerPrompt("portalgun", "Press E to use portal gun", 3);
+    // Show interaction prompt if close, looking at it, and not picked up yet
+    if (distance <= 5 && cachedIsLooking && !isPickedUp) {
+      registerPrompt("portalgun", "Press E to pickup Rick's Portal Gun", 3);
     } else {
       clearPrompt("portalgun");
     }
   }
 
-  return { portalGun, update };
+  return { portalGun, update, setOnUse: (callback) => { onUseCallback = callback; } };
 }
