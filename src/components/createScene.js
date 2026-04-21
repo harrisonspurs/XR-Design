@@ -23,7 +23,7 @@ export function createScene() {
 
   // Enable VR support
   renderer.xr.enabled = true;
-  renderer.xr.setReferenceSpaceType("local");
+  renderer.xr.setReferenceSpaceType("local-floor");
 
   // Set up color space and tone mapping for realistic lighting
   renderer.outputColorSpace = THREE.SRGBColorSpace;

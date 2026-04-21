@@ -1,4 +1,4 @@
-export function setupVRInput(renderer, playerMovement, playerCollider) {
+export function setupVRInput(renderer, playerMovement, playerCollider, playerSpawn) {
   let vrJustStarted = false;
 
   // Update controller input each frame
@@ -9,7 +9,7 @@ export function setupVRInput(renderer, playerMovement, playerCollider) {
       if (frame && renderer.xr.isPresenting && !vrJustStarted) {
         vrJustStarted = true;
         console.log("[VR] Moving player to ground level at origin");
-        playerCollider.position.set(0, 0, 0);
+        playerCollider.position.set(playerSpawn.x, playerSpawn.y, playerSpawn.z);
       }
 
       // Reset flag when leaving VR
