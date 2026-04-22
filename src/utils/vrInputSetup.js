@@ -1,58 +1,16 @@
 import * as THREE from "three";
 
-export function setupVRInput(renderer, playerController, playerSpawn) {
-  let vrActive = false;
-  let baseReferenceSpace = null;
-
-  const MOVE_SPEED = 3;
-  let lastTime = 0;
+export function setupVRInput(renderer, playerController) {
+  const MOVE_SPEED = 4;
 
   const originalSetAnimationLoop = renderer.setAnimationLoop.bind(renderer);
 
   renderer.setAnimationLoop = function (callback) {
     return originalSetAnimationLoop((time, frame) => {
-      const delta =
-        lastTime > 0 ? Math.min((time - lastTime) / 1000, 0.1) : 0;
-      lastTime = time;
 
-      // ───────────── VR START ─────────────
-      if (frame && renderer.xr.isPresenting && !vrActive) {
-        vrActive = true;
-
-        baseReferenceSpace = renderer.xr.getReferenceSpace();
-
-        // ✅ SAFE: fallback to playerSpawn if something goes wrong
-        const pos =
-          playerController?.playerCollider?.position || playerSpawn;
-
-        if (baseReferenceSpace && pos) {
-          const spawnTransform = new XRRigidTransform(
-            {
-              x: pos.x,
-              y: pos.y,
-              z: pos.z,
-            },
-            { x: 0, y: 0, z: 0, w: 1 }
-          );
-
-          renderer.xr.setReferenceSpace(
-            baseReferenceSpace.getOffsetReferenceSpace(spawnTransform)
-          );
-        }
-
-        console.log("[VR] Sync position:", pos);
-      }
-
-      // ───────────── VR END ─────────────
-      if (!renderer.xr.isPresenting && vrActive) {
-        vrActive = false;
-        baseReferenceSpace = null;
-        lastTime = 0;
-      }
-
-      // ───────────── VR MOVEMENT ─────────────
-      if (frame && renderer.xr.isPresenting && delta > 0) {
-        handleVRMovement(renderer, playerController, delta, MOVE_SPEED);
+      // Only run in VR
+      if (frame && renderer.xr.isPresenting) {
+        handleVRMovement(renderer, playerController, MOVE_SPEED);
       }
 
       callback(time, frame);
@@ -62,9 +20,12 @@ export function setupVRInput(renderer, playerController, playerSpawn) {
 
 // ─────────────────────────────────────────────
 
-function handleVRMovement(renderer, playerController, delta, MOVE_SPEED) {
+function handleVRMovement(renderer, playerController, MOVE_SPEED) {
   const session = renderer.xr.getSession();
   if (!session) return;
+
+  const body = playerController?.playerCollider?.body;
+  if (!body) return;
 
   let stickX = 0;
   let stickY = 0;
@@ -74,20 +35,20 @@ function handleVRMovement(renderer, playerController, delta, MOVE_SPEED) {
     if (input.handedness === "left" && input.gamepad) {
       const rawX = input.gamepad.axes[2] ?? 0;
       const rawY = input.gamepad.axes[3] ?? 0;
+
       stickX = Math.abs(rawX) > deadzone ? rawX : 0;
       stickY = Math.abs(rawY) > deadzone ? rawY : 0;
     }
   }
 
-  const body = playerController?.playerCollider?.body;
-  if (!body) return;
-
+  // No input → stop horizontal movement
   if (Math.abs(stickX) < 0.01 && Math.abs(stickY) < 0.01) {
     const vel = body.velocity;
     body.setVelocity(0, vel.y, 0);
     return;
   }
 
+  // Get headset direction
   const xrCamera = renderer.xr.getCamera();
 
   const forward = new THREE.Vector3();
@@ -109,5 +70,9 @@ function handleVRMovement(renderer, playerController, delta, MOVE_SPEED) {
 
   const vel = body.velocity;
 
-  body.setVelocity(moveX, vel.y, moveZ);
+  body.setVelocity(
+    moveX,
+    vel.y, // keep gravity
+    moveZ
+  );
 }

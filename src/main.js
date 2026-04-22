@@ -159,7 +159,7 @@ PhysicsLoader("/ammo", async () => {
 
   // Set up VR controller input
  
-  setupVRInput(renderer, playerController, playerSpawn);;
+  setupVRInput(renderer, playerController);
   const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
   const boomboxController = await createBoombox(scene, camera, getIsWearing);
   const { update: updateBoombox } = boomboxController;
