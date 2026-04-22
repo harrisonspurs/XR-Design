@@ -10,7 +10,7 @@ export function setupVRInput(renderer, playerController, playerSpawn) {
   // Start at spawn so the first teleport is relative to origin
   const cumulativeOffset = new THREE.Vector3(
     playerSpawn.x,
-    playerSpawn.y - 1.6, // subtract approx head height so feet land at spawn Y
+    playerSpawn.y , // subtract approx head height so feet land at spawn Y
     playerSpawn.z
   );
 
@@ -37,7 +37,7 @@ export function setupVRInput(renderer, playerController, playerSpawn) {
           const spawnTransform = new XRRigidTransform(
             {
               x: playerSpawn.x,
-              y: playerSpawn.y - 1.6,
+              y: playerSpawn.y ,
               z: playerSpawn.z,
             },
             { x: 0, y: 0, z: 0, w: 1 }
@@ -63,7 +63,7 @@ export function setupVRInput(renderer, playerController, playerSpawn) {
         // Reset cumulative offset back to spawn for next VR session
         cumulativeOffset.set(
           playerSpawn.x,
-          playerSpawn.y - 1.6,
+          playerSpawn.y ,
           playerSpawn.z
         );
       }
@@ -134,8 +134,8 @@ function handleVRMovement(
 
   // Right is perpendicular to forward
   const right = new THREE.Vector3()
-    .crossVectors(forward, new THREE.Vector3(0, 1, 0))
-    .normalize();
+  .crossVectors(new THREE.Vector3(0, 1, 0), forward)
+  .normalize();
 
   // Build this frame's movement delta
   const moveX =
