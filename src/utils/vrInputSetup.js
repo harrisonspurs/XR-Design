@@ -1,12 +1,12 @@
-const DEFAULT_DEADZONE = 0.2;
-const TURN_SPEED = 2.4; // radians per second
+const DEADZONE = 0.2;
+const TURN_SPEED = 2.6; // radians/sec
 
 export function setupVRInput(renderer, playerController) {
   const originalSetAnimationLoop = renderer.setAnimationLoop.bind(renderer);
   let lastFrameTime = null;
 
   const state = {
-    playerMovement: playerController.movement,
+    movement: playerController.movement,
     lastJumpPressed: false,
     lastInteractPressed: false,
     yawOffset: 0,
@@ -15,6 +15,8 @@ export function setupVRInput(renderer, playerController) {
 
   renderer.xr.addEventListener("sessionstart", () => {
     state.baseReferenceSpace = renderer.xr.getReferenceSpace() || null;
+    state.lastJumpPressed = false;
+    state.lastInteractPressed = false;
     state.yawOffset = 0;
   });
 
@@ -22,6 +24,11 @@ export function setupVRInput(renderer, playerController) {
     if (state.baseReferenceSpace) {
       renderer.xr.setReferenceSpace(state.baseReferenceSpace);
     }
+    state.movement.forward = false;
+    state.movement.backward = false;
+    state.movement.left = false;
+    state.movement.right = false;
+    state.movement.jump = false;
     state.lastJumpPressed = false;
     state.lastInteractPressed = false;
     state.yawOffset = 0;
@@ -35,188 +42,142 @@ export function setupVRInput(renderer, playerController) {
         lastFrameTime === null ? 0 : Math.max(0, (time - lastFrameTime) / 1000);
       lastFrameTime = time;
 
-      if (isVr && frame.session?.inputSources) {
+      if (isVr) {
         if (!state.baseReferenceSpace) {
           state.baseReferenceSpace = renderer.xr.getReferenceSpace() || null;
         }
-        handleVRControllers(frame.session, deltaSeconds, state);
+        if (frame.session?.inputSources) {
+          readControllerInput(frame.session, deltaSeconds, state);
+        }
+        if (state.baseReferenceSpace) {
+          syncToPlayerReferenceSpace(
+            renderer,
+            frame,
+            state.baseReferenceSpace,
+            playerController,
+            state.yawOffset,
+          );
+        }
       }
 
       callback(time, frame);
-
-      if (isVr && frame && state.baseReferenceSpace) {
-        syncReferenceSpace(
-          renderer,
-          frame,
-          state.baseReferenceSpace,
-          playerController,
-          state.yawOffset,
-        );
-      }
     });
   };
 }
 
-function handleVRControllers(session, deltaSeconds, state) {
-  const movement = state.playerMovement;
+function readControllerInput(session, deltaSeconds, state) {
+  const movement = state.movement;
+  const sources = Array.from(session.inputSources).filter((src) => src?.gamepad);
 
-  let leftStick = { x: 0, y: 0 };
-  let leftFound = false;
-  let anyJumpPressed = false;
-  let anyInteractPressed = false;
-  let turnInput = 0;
-
-  const sources = Array.from(session.inputSources).filter(
-    (source) => source?.gamepad,
-  );
-  const leftSource = sources.find((source) => source.handedness === "left");
-  const rightSource = sources.find((source) => source.handedness === "right");
-  const unknownSources = sources.filter(
-    (source) =>
-      source.handedness !== "left" && source.handedness !== "right",
-  );
-
-  const movementSource = leftSource ?? unknownSources[0] ?? rightSource ?? null;
-  const turnSource =
-    rightSource ??
-    (unknownSources.length > 1 ?
-      unknownSources[1]
-    : unknownSources[0] !== movementSource ?
-      unknownSources[0]
-    : null);
-
-  const sourcesToCheck = [];
-  if (movementSource) sourcesToCheck.push(movementSource);
-  if (turnSource && turnSource !== movementSource) sourcesToCheck.push(turnSource);
-
-  for (const source of sourcesToCheck) {
-    if (!source?.gamepad) continue;
-
-    const { x, y } = getThumbstickAxes(source.gamepad.axes);
-    const buttons = source.gamepad.buttons || [];
-
-    if (source === movementSource) {
-      leftFound = true;
-      leftStick = { x, y };
-      if (isAnyButtonPressed(buttons, [3, 2])) {
-        anyJumpPressed = true;
-      }
-      if (isAnyButtonPressed(buttons, [0, 1])) {
-        anyInteractPressed = true;
-      }
-    }
-
-    if (source === turnSource) {
-      turnInput = x;
-      if (isAnyButtonPressed(buttons, [3, 2])) {
-        anyJumpPressed = true;
-      }
-      if (isAnyButtonPressed(buttons, [0, 1])) {
-        anyInteractPressed = true;
-      }
-    }
-  }
-
-  if (!leftFound) {
+  if (sources.length === 0) {
     movement.forward = false;
     movement.backward = false;
     movement.left = false;
     movement.right = false;
-  } else {
-    const moveX = applyDeadzone(leftStick.x);
-    const moveY = applyDeadzone(leftStick.y);
-
-    movement.forward = moveY < -0.1;
-    movement.backward = moveY > 0.1;
-    movement.left = moveX < -0.1;
-    movement.right = moveX > 0.1;
+    movement.jump = false;
+    if (state.lastInteractPressed) {
+      document.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          code: "KeyE",
+          key: "e",
+        }),
+      );
+      state.lastInteractPressed = false;
+    }
+    state.lastJumpPressed = false;
+    return;
   }
 
-  if (anyJumpPressed && !state.lastJumpPressed) {
+  const left = sources.find((src) => src.handedness === "left") || null;
+  const right = sources.find((src) => src.handedness === "right") || null;
+  const unknown = sources.filter(
+    (src) => src.handedness !== "left" && src.handedness !== "right",
+  );
+
+  const moveSource = left ?? unknown[0] ?? right ?? null;
+  const turnSource = right ?? unknown[1] ?? (moveSource === right ? null : moveSource);
+
+  const moveAxes = moveSource ? getPreferredStick(moveSource.gamepad.axes) : { x: 0, y: 0 };
+  const turnAxes = turnSource ? getPreferredStick(turnSource.gamepad.axes) : { x: 0, y: 0 };
+
+  const moveX = applyDeadzone(moveAxes.x);
+  const moveY = applyDeadzone(moveAxes.y);
+  const turnX = applyDeadzone(turnAxes.x);
+
+  movement.forward = moveY < -0.1;
+  movement.backward = moveY > 0.1;
+  movement.left = moveX < -0.1;
+  movement.right = moveX > 0.1;
+
+  const jumpPressed =
+    isAnyButtonPressed(moveSource?.gamepad?.buttons, [3, 4, 5, 2]) ||
+    isAnyButtonPressed(turnSource?.gamepad?.buttons, [3, 4, 5, 2]);
+
+  if (jumpPressed && !state.lastJumpPressed) {
     movement.jump = true;
   }
-  if (!anyJumpPressed && state.lastJumpPressed) {
+  if (!jumpPressed && state.lastJumpPressed) {
     movement.jump = false;
   }
-  state.lastJumpPressed = anyJumpPressed;
+  state.lastJumpPressed = jumpPressed;
 
-  if (anyInteractPressed !== state.lastInteractPressed) {
-    const eventName = anyInteractPressed ? "keydown" : "keyup";
-    const event = new KeyboardEvent(eventName, {
-      code: "KeyE",
-      key: "e",
-    });
-    document.dispatchEvent(event);
-    state.lastInteractPressed = anyInteractPressed;
+  const interactPressed =
+    isAnyButtonPressed(moveSource?.gamepad?.buttons, [0, 1]) ||
+    isAnyButtonPressed(turnSource?.gamepad?.buttons, [0, 1]);
+
+  if (interactPressed !== state.lastInteractPressed) {
+    const eventName = interactPressed ? "keydown" : "keyup";
+    document.dispatchEvent(
+      new KeyboardEvent(eventName, {
+        code: "KeyE",
+        key: "e",
+      }),
+    );
+    state.lastInteractPressed = interactPressed;
   }
 
-  if (
-    Math.abs(turnInput) > DEFAULT_DEADZONE &&
-    deltaSeconds > 0 &&
-    state.baseReferenceSpace
-  ) {
-    state.yawOffset += turnInput * TURN_SPEED * deltaSeconds;
+  if (Math.abs(turnX) > DEADZONE && deltaSeconds > 0) {
+    // In WebXR offset spaces, yaw sign is inverse of stick yaw intent.
+    state.yawOffset -= turnX * TURN_SPEED * deltaSeconds;
+    state.yawOffset = normalizeAngle(state.yawOffset);
   }
 }
 
-function getThumbstickAxes(axes = []) {
-  if (axes.length >= 4) {
-    const primary = { x: axes[0] ?? 0, y: axes[1] ?? 0 };
-    const secondary = { x: axes[2] ?? 0, y: axes[3] ?? 0 };
-    const primaryMag = Math.abs(primary.x) + Math.abs(primary.y);
-    const secondaryMag = Math.abs(secondary.x) + Math.abs(secondary.y);
-    return secondaryMag > primaryMag ? secondary : primary;
-  }
-  if (axes.length >= 2) {
-    return { x: axes[0] ?? 0, y: axes[1] ?? 0 };
-  }
-  return { x: 0, y: 0 };
-}
-
-function applyDeadzone(value, deadzone = DEFAULT_DEADZONE) {
-  return Math.abs(value) < deadzone ? 0 : value;
-}
-
-function isAnyButtonPressed(buttons, indices) {
-  return indices.some((index) => buttons[index]?.pressed);
-}
-
-function syncReferenceSpace(
+function syncToPlayerReferenceSpace(
   renderer,
   frame,
   baseReferenceSpace,
   playerController,
   yawRadians,
 ) {
-  if (!renderer?.xr || typeof XRRigidTransform === "undefined") {
-    return;
-  }
+  if (!renderer?.xr || typeof XRRigidTransform === "undefined") return;
   const collider = playerController?.playerCollider;
   if (!collider?.position) return;
 
   const pose = frame.getViewerPose(baseReferenceSpace);
-  if (!pose?.transform?.position) return;
+  const head = pose?.transform?.position;
+  if (!head) return;
 
-  const playerHeight =
-    Number.isFinite(playerController?.PLAYER_HEIGHT) ?
-      playerController.PLAYER_HEIGHT
-    : 1.6;
   const cameraOffset =
     Number.isFinite(playerController?.cameraYOffset) ?
       playerController.cameraYOffset
     : 0;
 
-  const desiredHead = {
-    x: collider.position.x,
-    y: collider.position.y + cameraOffset,
-    z: collider.position.z,
-  };
+  const desiredHeadX = collider.position.x;
+  const desiredHeadY = collider.position.y + cameraOffset;
+  const desiredHeadZ = collider.position.z;
 
-  const head = pose.transform.position;
-  const position = {
-    x: desiredHead.x - head.x,
-    y: desiredHead.y - head.y,
-    z: desiredHead.z - head.z,
+  // getOffsetReferenceSpace applies originOffset as new-origin-in-base-space.
+  // With rotation, translation must be: t = head - (R * desiredHead).
+  const cos = Math.cos(yawRadians);
+  const sin = Math.sin(yawRadians);
+  const rotatedDesiredX = cos * desiredHeadX + sin * desiredHeadZ;
+  const rotatedDesiredZ = -sin * desiredHeadX + cos * desiredHeadZ;
+
+  const translation = {
+    x: head.x - rotatedDesiredX,
+    y: head.y - desiredHeadY,
+    z: head.z - rotatedDesiredZ,
   };
 
   const half = yawRadians / 2;
@@ -227,7 +188,39 @@ function syncReferenceSpace(
     w: Math.cos(half),
   };
 
-  const transform = new XRRigidTransform(position, rotation);
-  const offsetSpace = baseReferenceSpace.getOffsetReferenceSpace(transform);
-  renderer.xr.setReferenceSpace(offsetSpace);
+  const transform = new XRRigidTransform(translation, rotation);
+  renderer.xr.setReferenceSpace(
+    baseReferenceSpace.getOffsetReferenceSpace(transform),
+  );
+}
+
+function getPreferredStick(axes = []) {
+  if (axes.length >= 4) {
+    const stickA = { x: axes[0] ?? 0, y: axes[1] ?? 0 };
+    const stickB = { x: axes[2] ?? 0, y: axes[3] ?? 0 };
+    const magA = Math.abs(stickA.x) + Math.abs(stickA.y);
+    const magB = Math.abs(stickB.x) + Math.abs(stickB.y);
+    if (magB > magA) return stickB;
+    return stickA;
+  }
+  if (axes.length >= 2) {
+    return { x: axes[0] ?? 0, y: axes[1] ?? 0 };
+  }
+  return { x: 0, y: 0 };
+}
+
+function applyDeadzone(value) {
+  return Math.abs(value) < DEADZONE ? 0 : value;
+}
+
+function isAnyButtonPressed(buttons, indices) {
+  if (!buttons) return false;
+  return indices.some((index) => !!buttons[index]?.pressed);
+}
+
+function normalizeAngle(value) {
+  const twoPi = Math.PI * 2;
+  let angle = ((value % twoPi) + twoPi) % twoPi;
+  if (angle > Math.PI) angle -= twoPi;
+  return angle;
 }
