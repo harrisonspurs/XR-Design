@@ -102,7 +102,7 @@ export function createVRHud(scene, camera) {
     const recordUiLabel = window.__recordBoxUiLabel || "";
     const labelText =
       isRecordUiOpen ?
-        `${recordUiLabel || "Record Box"}  |  A/X next  B/Y prev  Trigger select  Grip close`
+        `${recordUiLabel || "Record Box"}  |  X/A next  Trigger select`
       : hasActivePrompt ?
         promptMessage
       : "";

@@ -6,10 +6,13 @@ import "../styles/recordBox.css";
 
 // Create an interactive record box that plays music from a playlist
 // The record box has a UI for selecting tracks and shows album art
-const ALBUM_PASSWORD = (import.meta.env.VITE_ALBUM_PASSWORD || "").trim();
+const DEFAULT_ALBUM_PASSWORD = "harrisonbottomley";
+const ALBUM_PASSWORD = (import.meta.env.VITE_ALBUM_PASSWORD || DEFAULT_ALBUM_PASSWORD).trim();
+const DEFAULT_ALBUM_PASSWORD_HASH =
+  "b394dcc60d058853f43365f1a2c0d16d4599b6d7d288e52b0d129c7c621b4047";
 const ALBUM_PASSWORD_HASH = (import.meta.env.VITE_ALBUM_PASSWORD_HASH || "")
   .trim()
-  .toLowerCase();
+  .toLowerCase() || DEFAULT_ALBUM_PASSWORD_HASH;
 const LOCKED_TRACKS_RAW = import.meta.env.VITE_LOCKED_TRACKS || "";
 const DEFAULT_LOCKED_TRACKS = [
   "bologni_interlude_-_white2pac_klickaud.mp3",
@@ -302,15 +305,16 @@ export async function createRecordBox(scene, camera) {
     const track = TRACKS[currentIndex];
     const isLocked = isLockedTrack(track);
     const hideInfo = isLocked && !lockedTracksUnlocked;
-    controlsHint.innerText = window.__vrIsPresenting ?
-      "Stick left/right to browse | Trigger/A select | B/Grip close"
+    const isVr = !!window.__vrIsPresenting;
+    controlsHint.innerText = isVr ?
+      "X/A next track | Trigger select"
     : "Arrow keys browse | Enter select | Esc close";
     artImg.src = track.art;
     trackTitle.innerText = hideInfo ? "???" : track.title;
     trackArtist.innerText = hideInfo ? "???" : track.artist;
     counter.innerText = `${currentIndex + 1} / ${TRACKS.length}`;
     window.__recordBoxUiLabel =
-      `Record ${currentIndex + 1}/${TRACKS.length}: ${hideInfo ? "???" : `${track.title} - ${track.artist}`}`;
+      hideInfo ? "Locked track" : track.title;
 
     if (selectedTrack && selectedTrack.file === track.file) {
       selectBtn.innerText = "Selected - take to boombox";
@@ -353,6 +357,13 @@ export async function createRecordBox(scene, camera) {
     updateDisplay();
     ui.style.display = "block";
     ui.style.zIndex = "2200";
+    const isVr = !!window.__vrIsPresenting;
+    artContainer.style.display = isVr ? "none" : "";
+    trackArtist.style.display = isVr ? "none" : "";
+    selectionStatus.style.display = isVr ? "none" : "";
+    navRow.style.display = isVr ? "none" : "flex";
+    selectBtn.style.display = isVr ? "none" : "block";
+    closeBtn.style.display = isVr ? "none" : "block";
     uiOpen = true;
     window.__recordBoxUiOpen = true;
     document.exitPointerLock();
@@ -382,6 +393,9 @@ export async function createRecordBox(scene, camera) {
     if (ALBUM_PASSWORD_HASH) {
       const candidateHash = await sha256Hex(candidate);
       valid = !!candidateHash && candidateHash === ALBUM_PASSWORD_HASH;
+      if (!valid && ALBUM_PASSWORD) {
+        valid = candidate === ALBUM_PASSWORD;
+      }
     } else {
       valid = candidate === ALBUM_PASSWORD;
     }

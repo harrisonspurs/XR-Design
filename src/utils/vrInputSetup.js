@@ -22,7 +22,6 @@ export function setupVRInput(renderer, playerController) {
     baseReferenceSpace: null,
     anchorHead: null,
     lastReferenceTransform: null,
-    lastUiNavAt: 0,
   };
 
   renderer.xr.addEventListener("sessionstart", () => {
@@ -41,7 +40,6 @@ export function setupVRInput(renderer, playerController) {
     state.yawOffset = 0;
     state.anchorHead = null;
     state.lastReferenceTransform = null;
-    state.lastUiNavAt = 0;
   });
 
   renderer.xr.addEventListener("sessionend", () => {
@@ -71,7 +69,6 @@ export function setupVRInput(renderer, playerController) {
     state.baseReferenceSpace = null;
     state.anchorHead = null;
     state.lastReferenceTransform = null;
-    state.lastUiNavAt = 0;
   });
 
   renderer.setAnimationLoop = function (callback) {
@@ -151,7 +148,7 @@ function readControllerInput(session, deltaSeconds, state) {
       state.lastInteractPressed = false;
     }
     state.lastJumpPressed = false;
-    handleRecordBoxUIInput(moveButtons, turnButtons, moveAxes, turnAxes, state);
+    handleRecordBoxUIInput(moveButtons, turnButtons, state);
     return;
   } else {
     state.lastUiPrevPressed = false;
@@ -331,18 +328,7 @@ function updateVRLookRay(frame, referenceSpace) {
   };
 }
 
-function handleRecordBoxUIInput(moveButtons, turnButtons, moveAxes, turnAxes, state) {
-  const now = performance.now();
-  const navThreshold = 0.65;
-  const navCooldownMs = 220;
-  const navAxis =
-    Math.abs(turnAxes.x) > Math.abs(moveAxes.x) ? turnAxes.x : moveAxes.x;
-
-  if (Math.abs(navAxis) > navThreshold && now - state.lastUiNavAt > navCooldownMs) {
-    dispatchKeyTap(navAxis > 0 ? "ArrowRight" : "ArrowLeft", navAxis > 0 ? "ArrowRight" : "ArrowLeft");
-    state.lastUiNavAt = now;
-  }
-
+function handleRecordBoxUIInput(moveButtons, turnButtons, state) {
   const prevPressed =
     isAnyButtonPressed(moveButtons, [5]) || isAnyButtonPressed(turnButtons, [5]);
   const nextPressed =
