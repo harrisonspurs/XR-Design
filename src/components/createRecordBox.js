@@ -4,10 +4,7 @@ import { registerPrompt, clearPrompt, getActiveInteraction } from "./createPromp
 import { isLookingAt } from "./createControls.js";
 import "../styles/recordBox.css";
 
-// Create an interactive record box that plays music from a playlist
-// The record box has a UI for selecting tracks and shows album art
-const DEFAULT_ALBUM_PASSWORD = "harrisonbottomley";
-const ALBUM_PASSWORD = (import.meta.env.VITE_ALBUM_PASSWORD || DEFAULT_ALBUM_PASSWORD).trim();
+const ALBUM_PASSWORD = (import.meta.env.VITE_ALBUM_PASSWORD || "").trim();
 const DEFAULT_ALBUM_PASSWORD_HASH =
   "b394dcc60d058853f43365f1a2c0d16d4599b6d7d288e52b0d129c7c621b4047";
 const ALBUM_PASSWORD_HASH = (import.meta.env.VITE_ALBUM_PASSWORD_HASH || "")
@@ -33,14 +30,12 @@ const LOCKED_TRACKS =
 const HAS_LOCKED_TRACKS = LOCKED_TRACKS.length > 0;
 const HAS_UNLOCK_CONFIG = !!(ALBUM_PASSWORD || ALBUM_PASSWORD_HASH);
 
-// Helper function to extract filename from a path
 function getFileName(path) {
   if (!path) return "";
   const parts = path.split("/");
   return (parts[parts.length - 1] || "").toLowerCase();
 }
 
-// Check if a track is locked
 function isLockedTrack(track) {
   const fileName = getFileName(track?.file);
   return LOCKED_TRACKS.includes(fileName);

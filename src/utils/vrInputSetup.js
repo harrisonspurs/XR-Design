@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 const DEADZONE = 0.2;
-const TURN_SPEED = 2.6; // radians/sec
+const TURN_SPEED = 2.6;
 const VR_FORWARD = new THREE.Vector3(0, 0, -1);
 const vrLookDirection = new THREE.Vector3();
 const vrLookRotation = new THREE.Quaternion();
@@ -222,8 +222,7 @@ function syncToPlayerReferenceSpace(
   const desiredHeadY = collider.position.y + cameraOffset;
   const desiredHeadZ = collider.position.z;
 
-  // Keep the session-start head position as anchor so physical head motion
-  // remains 1:1 while locomotion/turn updates move the world origin.
+  // keep head tracking stable while moving/turning
   const cos = Math.cos(yawRadians);
   const sin = Math.sin(yawRadians);
   const rotatedDesiredX = cos * desiredHeadX + sin * desiredHeadZ;
