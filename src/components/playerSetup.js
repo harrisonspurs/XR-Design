@@ -326,6 +326,7 @@ export async function createPlayer({
     playerCollider,
     player,
     PLAYER_HEIGHT,
+    cameraYOffset: CAMERA_Y_OFFSET,
     movement,
     update,
     sitDown,
