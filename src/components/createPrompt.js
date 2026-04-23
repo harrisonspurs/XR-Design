@@ -46,6 +46,7 @@ function updatePrompt() {
   const keys = Object.keys(activePrompts);
 
   if (keys.length === 0) {
+    window.__activeInteractionId = null;
     shownPromptId = null;
     shownPromptMessage = "";
     prompt.style.display = "none";
@@ -63,6 +64,11 @@ function updatePrompt() {
 
   shownPromptId = top;
   shownPromptMessage = nextMessage;
+  window.__activeInteractionId = top;
+  if (window.__vrIsPresenting) {
+    prompt.style.display = "none";
+    return;
+  }
   prompt.innerText = nextMessage;
   prompt.style.display = "block";
 }

@@ -22,6 +22,7 @@ export function setupVRInput(renderer, playerController) {
     baseReferenceSpace: null,
     anchorHead: null,
     lastReferenceTransform: null,
+    lastUiNavAt: 0,
   };
 
   renderer.xr.addEventListener("sessionstart", () => {
@@ -29,6 +30,7 @@ export function setupVRInput(renderer, playerController) {
     window.__vrLookRay = null;
     window.__recordBoxUiOpen = false;
     window.__recordBoxUiLabel = "";
+    window.__activeInteractionId = null;
     state.baseReferenceSpace = renderer.xr.getReferenceSpace() || null;
     state.lastJumpPressed = false;
     state.lastInteractPressed = false;
@@ -39,6 +41,7 @@ export function setupVRInput(renderer, playerController) {
     state.yawOffset = 0;
     state.anchorHead = null;
     state.lastReferenceTransform = null;
+    state.lastUiNavAt = 0;
   });
 
   renderer.xr.addEventListener("sessionend", () => {
@@ -46,16 +49,12 @@ export function setupVRInput(renderer, playerController) {
     window.__vrLookRay = null;
     window.__recordBoxUiOpen = false;
     window.__recordBoxUiLabel = "";
+    window.__activeInteractionId = null;
     if (state.baseReferenceSpace) {
       renderer.xr.setReferenceSpace(state.baseReferenceSpace);
     }
     if (state.lastInteractPressed) {
-      document.dispatchEvent(
-        new KeyboardEvent("keyup", {
-          code: "KeyE",
-          key: "e",
-        }),
-      );
+      dispatchInteractionKeys("keyup");
     }
     state.movement.forward = false;
     state.movement.backward = false;
@@ -72,6 +71,7 @@ export function setupVRInput(renderer, playerController) {
     state.baseReferenceSpace = null;
     state.anchorHead = null;
     state.lastReferenceTransform = null;
+    state.lastUiNavAt = 0;
   });
 
   renderer.setAnimationLoop = function (callback) {
@@ -120,12 +120,7 @@ function readControllerInput(session, deltaSeconds, state) {
     movement.right = false;
     movement.jump = false;
     if (state.lastInteractPressed) {
-      document.dispatchEvent(
-        new KeyboardEvent("keyup", {
-          code: "KeyE",
-          key: "e",
-        }),
-      );
+      dispatchInteractionKeys("keyup");
       state.lastInteractPressed = false;
     }
     state.lastJumpPressed = false;
@@ -142,6 +137,8 @@ function readControllerInput(session, deltaSeconds, state) {
   const turnSource = right ?? unknown[1] ?? (moveSource === right ? null : moveSource);
   const moveButtons = moveSource?.gamepad?.buttons || null;
   const turnButtons = turnSource?.gamepad?.buttons || null;
+  const moveAxes = moveSource ? getPreferredStick(moveSource.gamepad.axes) : { x: 0, y: 0 };
+  const turnAxes = turnSource ? getPreferredStick(turnSource.gamepad.axes) : { x: 0, y: 0 };
 
   if (window.__recordBoxUiOpen) {
     movement.forward = false;
@@ -150,16 +147,11 @@ function readControllerInput(session, deltaSeconds, state) {
     movement.right = false;
     movement.jump = false;
     if (state.lastInteractPressed) {
-      document.dispatchEvent(
-        new KeyboardEvent("keyup", {
-          code: "KeyE",
-          key: "e",
-        }),
-      );
+      dispatchInteractionKeys("keyup");
       state.lastInteractPressed = false;
     }
     state.lastJumpPressed = false;
-    handleRecordBoxUIInput(moveButtons, turnButtons, state);
+    handleRecordBoxUIInput(moveButtons, turnButtons, moveAxes, turnAxes, state);
     return;
   } else {
     state.lastUiPrevPressed = false;
@@ -167,9 +159,6 @@ function readControllerInput(session, deltaSeconds, state) {
     state.lastUiSelectPressed = false;
     state.lastUiClosePressed = false;
   }
-
-  const moveAxes = moveSource ? getPreferredStick(moveSource.gamepad.axes) : { x: 0, y: 0 };
-  const turnAxes = turnSource ? getPreferredStick(turnSource.gamepad.axes) : { x: 0, y: 0 };
 
   const moveX = applyDeadzone(moveAxes.x);
   const moveY = applyDeadzone(moveAxes.y);
@@ -198,12 +187,7 @@ function readControllerInput(session, deltaSeconds, state) {
 
   if (interactPressed !== state.lastInteractPressed) {
     const eventName = interactPressed ? "keydown" : "keyup";
-    document.dispatchEvent(
-      new KeyboardEvent(eventName, {
-        code: "KeyE",
-        key: "e",
-      }),
-    );
+    dispatchInteractionKeys(eventName);
     state.lastInteractPressed = interactPressed;
   }
 
@@ -347,7 +331,18 @@ function updateVRLookRay(frame, referenceSpace) {
   };
 }
 
-function handleRecordBoxUIInput(moveButtons, turnButtons, state) {
+function handleRecordBoxUIInput(moveButtons, turnButtons, moveAxes, turnAxes, state) {
+  const now = performance.now();
+  const navThreshold = 0.65;
+  const navCooldownMs = 220;
+  const navAxis =
+    Math.abs(turnAxes.x) > Math.abs(moveAxes.x) ? turnAxes.x : moveAxes.x;
+
+  if (Math.abs(navAxis) > navThreshold && now - state.lastUiNavAt > navCooldownMs) {
+    dispatchKeyTap(navAxis > 0 ? "ArrowRight" : "ArrowLeft", navAxis > 0 ? "ArrowRight" : "ArrowLeft");
+    state.lastUiNavAt = now;
+  }
+
   const prevPressed =
     isAnyButtonPressed(moveButtons, [5]) || isAnyButtonPressed(turnButtons, [5]);
   const nextPressed =
@@ -379,4 +374,25 @@ function handleRecordBoxUIInput(moveButtons, turnButtons, state) {
 function dispatchKeyTap(code, key) {
   document.dispatchEvent(new KeyboardEvent("keydown", { code, key }));
   document.dispatchEvent(new KeyboardEvent("keyup", { code, key }));
+}
+
+function dispatchInteractionKeys(eventName) {
+  document.dispatchEvent(
+    new KeyboardEvent(eventName, {
+      code: "KeyE",
+      key: "e",
+    }),
+  );
+  const shouldDispatchPortalUse =
+    eventName === "keydown" &&
+    window.__vrIsPresenting &&
+    !window.__recordBoxUiOpen &&
+    !window.__activeInteractionId;
+  if (!shouldDispatchPortalUse) return;
+  document.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      code: "KeyR",
+      key: "r",
+    }),
+  );
 }

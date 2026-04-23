@@ -53,7 +53,10 @@ export function createCar(houseModel, camera, playerController, onArriveAtBar) {
   document.addEventListener("keydown", async (e) => {
     if (e.code !== "KeyE") return;
     if (isCurrentlyTransitioning()) return;
-    if (getActiveInteraction() !== "car") return;
+    if (getActiveInteraction() !== "car") {
+      if (!window.__vrIsPresenting) return;
+      if (!isLooking) return;
+    }
 
     const dist = camera.position.distanceTo(carWorldPos);
     if (dist > 5) return;
@@ -101,7 +104,13 @@ export function createCar(houseModel, camera, playerController, onArriveAtBar) {
     }
 
     if (dist <= 5 && isLooking) {
-      registerPrompt("car", "Press E to drive to Joe's Bar", 3);
+      registerPrompt(
+        "car",
+        window.__vrIsPresenting ?
+          "Trigger/A to drive to Joe's Bar"
+        : "Press E to drive to Joe's Bar",
+        3,
+      );
     } else {
       clearPrompt("car");
     }

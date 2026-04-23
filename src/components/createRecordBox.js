@@ -6,12 +6,29 @@ import "../styles/recordBox.css";
 
 // Create an interactive record box that plays music from a playlist
 // The record box has a UI for selecting tracks and shows album art
-const ALBUM_PASSWORD = import.meta.env.VITE_ALBUM_PASSWORD || "";
+const ALBUM_PASSWORD = (import.meta.env.VITE_ALBUM_PASSWORD || "").trim();
+const ALBUM_PASSWORD_HASH = (import.meta.env.VITE_ALBUM_PASSWORD_HASH || "")
+  .trim()
+  .toLowerCase();
 const LOCKED_TRACKS_RAW = import.meta.env.VITE_LOCKED_TRACKS || "";
+const DEFAULT_LOCKED_TRACKS = [
+  "bologni_interlude_-_white2pac_klickaud.mp3",
+  "1am_freestyle_klickaud.mp3",
+  "tennessee_klickaud.mp3",
+  "reunite_klickaud.mp3",
+  "education_klickaud.mp3",
+  "boovy_meat_klickaud.mp3",
+];
 
-const LOCKED_TRACKS = LOCKED_TRACKS_RAW.split(",")
+const LOCKED_TRACKS_FROM_ENV = LOCKED_TRACKS_RAW.split(",")
   .map((name) => name.trim().toLowerCase())
   .filter(Boolean);
+const LOCKED_TRACKS =
+  LOCKED_TRACKS_RAW.trim().toLowerCase() === "none" ? [] :
+  LOCKED_TRACKS_FROM_ENV.length > 0 ? LOCKED_TRACKS_FROM_ENV
+  : DEFAULT_LOCKED_TRACKS;
+const HAS_LOCKED_TRACKS = LOCKED_TRACKS.length > 0;
+const HAS_UNLOCK_CONFIG = !!(ALBUM_PASSWORD || ALBUM_PASSWORD_HASH);
 
 // Helper function to extract filename from a path
 function getFileName(path) {
@@ -163,7 +180,7 @@ export async function createRecordBox(scene, camera) {
   let uiOpen = false;
   window.__recordBoxUiOpen = false;
   window.__recordBoxUiLabel = "";
-  let lockedTracksUnlocked = ALBUM_PASSWORD.length === 0;
+  let lockedTracksUnlocked = !HAS_LOCKED_TRACKS;
   let isDragging = false;
   let dragStartX = 0;
   let lastLookCheckTime = 0;
@@ -175,6 +192,15 @@ export async function createRecordBox(scene, camera) {
   heading.innerText = "Record Box";
   heading.className = "record-box-heading";
   ui.appendChild(heading);
+  const controlsHint = document.createElement("div");
+  controlsHint.style.cssText = `
+    font-size: 12px;
+    color: rgba(255,255,255,0.62);
+    margin-top: -10px;
+    margin-bottom: 16px;
+    line-height: 1.4;
+  `;
+  ui.appendChild(controlsHint);
   const artContainer = document.createElement("div");
   artContainer.className = "record-box-art-container";
   ui.appendChild(artContainer);
@@ -189,6 +215,15 @@ export async function createRecordBox(scene, camera) {
   const trackArtist = document.createElement("div");
   trackArtist.className = "record-box-track-artist";
   ui.appendChild(trackArtist);
+  const selectionStatus = document.createElement("div");
+  selectionStatus.style.cssText = `
+    font-size: 12px;
+    color: rgba(255,200,140,0.92);
+    margin-top: -8px;
+    margin-bottom: 14px;
+    min-height: 16px;
+  `;
+  ui.appendChild(selectionStatus);
   const navRow = document.createElement("div");
   navRow.className = "record-box-nav-row";
   ui.appendChild(navRow);
@@ -225,14 +260,16 @@ export async function createRecordBox(scene, camera) {
   selectBtn.addEventListener("mouseleave", () => {
     selectBtn.style.background = "rgba(255,150,50,0.8)";
   });
-  function selectCurrentTrack() {
+  async function selectCurrentTrack() {
     const track = TRACKS[currentIndex];
-    if (isLockedTrack(track) && !unlockLockedTracks()) return;
+    if (isLockedTrack(track) && !(await unlockLockedTracks())) return;
     selectedTrack = track;
     selectBtn.innerText = "Selected - take to boombox";
     closeUI();
   }
-  selectBtn.addEventListener("click", selectCurrentTrack);
+  selectBtn.addEventListener("click", () => {
+    void selectCurrentTrack();
+  });
   ui.appendChild(selectBtn);
   const closeBtn = document.createElement("div");
   closeBtn.innerText = "X Close";
@@ -265,19 +302,27 @@ export async function createRecordBox(scene, camera) {
     const track = TRACKS[currentIndex];
     const isLocked = isLockedTrack(track);
     const hideInfo = isLocked && !lockedTracksUnlocked;
+    controlsHint.innerText = window.__vrIsPresenting ?
+      "Stick left/right to browse | Trigger/A select | B/Grip close"
+    : "Arrow keys browse | Enter select | Esc close";
     artImg.src = track.art;
     trackTitle.innerText = hideInfo ? "???" : track.title;
     trackArtist.innerText = hideInfo ? "???" : track.artist;
     counter.innerText = `${currentIndex + 1} / ${TRACKS.length}`;
     window.__recordBoxUiLabel =
-      `Record ${currentIndex + 1}/${TRACKS.length}: ${hideInfo ? "???" : `${track.title} — ${track.artist}`}`;
+      `Record ${currentIndex + 1}/${TRACKS.length}: ${hideInfo ? "???" : `${track.title} - ${track.artist}`}`;
 
     if (selectedTrack && selectedTrack.file === track.file) {
       selectBtn.innerText = "Selected - take to boombox";
+      selectionStatus.innerText = "Currently selected";
     } else if (isLocked && !lockedTracksUnlocked) {
       selectBtn.innerText = "Locked song - enter password";
+      selectionStatus.innerText = "Locked track";
     } else {
       selectBtn.innerText = "Select this record";
+      selectionStatus.innerText = selectedTrack ?
+        `Selected now: ${selectedTrack.title}`
+      : "No record selected";
     }
   }
 
@@ -320,13 +365,28 @@ export async function createRecordBox(scene, camera) {
     window.__recordBoxUiLabel = "";
   }
 
-  function unlockLockedTracks() {
+  async function unlockLockedTracks() {
     if (lockedTracksUnlocked) return true;
+    if (!HAS_UNLOCK_CONFIG) {
+      window.alert(
+        "Locked tracks are enabled but no unlock password is configured. Add VITE_ALBUM_PASSWORD or VITE_ALBUM_PASSWORD_HASH to your .env and restart Vite.",
+      );
+      return false;
+    }
 
     const input = window.prompt("Enter album password");
     if (input === null) return false;
+    const candidate = input.trim();
+    let valid = false;
 
-    if (input !== ALBUM_PASSWORD) {
+    if (ALBUM_PASSWORD_HASH) {
+      const candidateHash = await sha256Hex(candidate);
+      valid = !!candidateHash && candidateHash === ALBUM_PASSWORD_HASH;
+    } else {
+      valid = candidate === ALBUM_PASSWORD;
+    }
+
+    if (!valid) {
       window.alert("Wrong password");
       return false;
     }
@@ -349,8 +409,16 @@ export async function createRecordBox(scene, camera) {
         navigate(1);
         return;
       }
+      if (e.code === "KeyA") {
+        navigate(-1);
+        return;
+      }
+      if (e.code === "KeyD") {
+        navigate(1);
+        return;
+      }
       if (e.code === "Enter" || e.code === "Space") {
-        selectCurrentTrack();
+        void selectCurrentTrack();
         return;
       }
     }
@@ -399,4 +467,14 @@ export async function createRecordBox(scene, camera) {
   }
 
   return { recordBox, update, nowPlaying };
+}
+
+async function sha256Hex(value) {
+  if (!globalThis.crypto?.subtle) return null;
+  const data = new TextEncoder().encode(value);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
+  const bytes = new Uint8Array(digest);
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }

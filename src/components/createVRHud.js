@@ -86,7 +86,11 @@ export function createVRHud(scene, camera) {
     reticle.position.copy(tmpEnd);
     reticle.lookAt(tmpOrigin);
 
-    line.visible = true;
+    const promptMessage = getActivePromptMessage();
+    const hasActivePrompt = !!promptMessage;
+    const isRecordUiOpen = !!window.__recordBoxUiOpen;
+
+    line.visible = hasActivePrompt || isRecordUiOpen;
     linePositions[0] = tmpOrigin.x;
     linePositions[1] = tmpOrigin.y;
     linePositions[2] = tmpOrigin.z;
@@ -95,15 +99,13 @@ export function createVRHud(scene, camera) {
     linePositions[5] = tmpEnd.z;
     lineGeometry.attributes.position.needsUpdate = true;
 
-    const promptMessage = getActivePromptMessage();
-    const hasActivePrompt = !!promptMessage;
     const recordUiLabel = window.__recordBoxUiLabel || "";
     const labelText =
-      window.__recordBoxUiOpen ?
+      isRecordUiOpen ?
         `${recordUiLabel || "Record Box"}  |  A/X next  B/Y prev  Trigger select  Grip close`
       : hasActivePrompt ?
         promptMessage
-      : "Aim at objects, then use trigger/A to interact";
+      : "";
 
     if (labelText !== lastLabelText || hasActivePrompt !== lastLabelActive) {
       drawLabel(labelContext, labelCanvas, labelText, hasActivePrompt);
@@ -113,8 +115,10 @@ export function createVRHud(scene, camera) {
     }
 
     tmpUp.set(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
-    label.visible = true;
-    label.position.copy(tmpEnd).addScaledVector(tmpUp, 0.16);
+    label.visible = !!labelText;
+    if (label.visible) {
+      label.position.copy(tmpEnd).addScaledVector(tmpUp, 0.16);
+    }
 
     const color = hasActivePrompt ? 0xffa357 : 0xffffff;
     reticle.material.color.setHex(color);

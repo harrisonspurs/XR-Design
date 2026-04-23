@@ -71,15 +71,27 @@ export async function createPortalGun(scene, camera, positionOverride = null) {
     display: none;
     z-index: 100;
   `;
-  pickupUI.textContent = "Press R to use Portal Gun";
+  pickupUI.textContent = "Portal Gun equipped";
   document.body.appendChild(pickupUI);
+
+  function showPickupHint(message, duration = 2200) {
+    pickupUI.textContent = message;
+    pickupUI.style.display = "block";
+    window.setTimeout(() => {
+      pickupUI.style.display = "none";
+    }, duration);
+  }
 
   // E key listener for picking up the portal gun
   document.addEventListener("keydown", (e) => {
     if (e.code === "KeyE" && !isPickedUp && distance <= 5 && cachedIsLooking) {
       isPickedUp = true;
       portalGun.visible = false;
-      pickupUI.style.display = "block";
+      showPickupHint(
+        window.__vrIsPresenting ?
+          "Portal Gun equipped - trigger/A to fire"
+        : "Portal Gun equipped - press R to fire",
+      );
       clearPrompt("portalgun");
     }
   });
@@ -90,7 +102,6 @@ export async function createPortalGun(scene, camera, positionOverride = null) {
       console.log("[Portal Gun] Rick used the Portal Gun!");
       portalGunSound.currentTime = 0;
       portalGunSound.play();
-      pickupUI.style.display = "none";
       if (onUseCallback) {
         onUseCallback();
       }
@@ -111,7 +122,13 @@ export async function createPortalGun(scene, camera, positionOverride = null) {
 
     // Show interaction prompt if close, looking at it, and not picked up yet
     if (distance <= 5 && cachedIsLooking && !isPickedUp) {
-      registerPrompt("portalgun", "Press E to pickup Rick's Portal Gun", 3);
+      registerPrompt(
+        "portalgun",
+        window.__vrIsPresenting ?
+          "Trigger/A to pick up Rick's Portal Gun"
+        : "Press E to pick up Rick's Portal Gun",
+        3,
+      );
     } else {
       clearPrompt("portalgun");
     }

@@ -19,7 +19,10 @@ export async function createChair(scene, camera, playerController = null) {
   document.addEventListener("keydown", (e) => {
     if (e.code !== "KeyE") return;
     if (!chair) return;
-    if (getActiveInteraction() !== "chair" && !isSeated) return;
+    if (getActiveInteraction() !== "chair" && !isSeated) {
+      if (!window.__vrIsPresenting) return;
+      if (!cachedIsLooking) return;
+    }
 
     const distance = camera.position.distanceTo(chair.position);
 
@@ -53,9 +56,16 @@ export async function createChair(scene, camera, playerController = null) {
       lastLookCheckTime = now;
     }
 
-    if ((distance <= 3 && cachedIsLooking) || isSeated) {
+    const shouldShowPrompt =
+      distance <= 3 && (cachedIsLooking || (isSeated && !window.__vrIsPresenting));
+
+    if (shouldShowPrompt) {
       registerPrompt("chair",
-        isSeated ? "Press E to stand up" : "Press E to sit down",
+        isSeated ?
+          (window.__vrIsPresenting ? "Trigger/A to stand up" : "Press E to stand up")
+        : window.__vrIsPresenting ?
+          "Trigger/A to sit down"
+        : "Press E to sit down",
         isSeated ? 10 : 2
       );
     } else {

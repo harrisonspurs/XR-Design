@@ -57,8 +57,21 @@ export async function createHeadphones(scene, camera) {
 
   document.addEventListener("keydown", (e) => {
     if (e.repeat) return;
-    if (e.code !== "KeyH") return;
-    removeHeadphones();
+    if (e.code === "KeyH") {
+      removeHeadphones();
+      return;
+    }
+    if (e.code !== "KeyE") return;
+    if (!headphones || isWearing) return;
+
+    const active = getActiveInteraction();
+    if (active !== "headphones" && !window.__vrIsPresenting) return;
+
+    const distance = camera.position.distanceTo(headphones.position);
+    if (distance > 2.8) return;
+    if (!cachedIsLooking) return;
+
+    wearHeadphones();
   });
 
   document.addEventListener("mousedown", (e) => {
@@ -91,7 +104,13 @@ export async function createHeadphones(scene, camera) {
     }
 
     if (distance <= 2.8 && cachedIsLooking) {
-      registerPrompt("headphones", "Click to wear headphones", 5);
+      registerPrompt(
+        "headphones",
+        window.__vrIsPresenting ?
+          "Trigger/A to wear headphones"
+        : "Press E or click to wear headphones",
+        5,
+      );
     } else {
       clearPrompt("headphones");
     }

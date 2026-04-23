@@ -157,7 +157,13 @@ export async function createRick(scene, physics, camera) {
 
       // Show prompt only if close AND looking at Rick
       if (distance <= 5 && cachedIsLooking) {
-        registerPrompt("rick", "Press E to talk to Rick", 5);
+        registerPrompt(
+          "rick",
+          window.__vrIsPresenting ?
+            "Trigger/A to talk to Rick"
+          : "Press E to talk to Rick",
+          5,
+        );
       } else {
         clearPrompt("rick");
       }

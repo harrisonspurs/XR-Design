@@ -148,7 +148,10 @@ export async function createPhone(scene, camera, boomboxController) {
     if (!phone) return;
 
     const active = getActiveInteraction();
-    if (active !== "phone" && !uiOpen) return;
+    if (active !== "phone" && !uiOpen) {
+      if (!window.__vrIsPresenting) return;
+      if (!cachedIsLooking) return;
+    }
 
     const distance = camera.position.distanceTo(phone.position);
     if (distance > 3.2 && !uiOpen) return;
@@ -169,7 +172,13 @@ export async function createPhone(scene, camera, boomboxController) {
     }
 
     if (!uiOpen && distance <= 3.2 && cachedIsLooking) {
-      registerPrompt("phone", "Press E to open iPod player", 4);
+      registerPrompt(
+        "phone",
+        window.__vrIsPresenting ?
+          "Trigger/A to open iPod player"
+        : "Press E to open iPod player",
+        4,
+      );
     } else {
       clearPrompt("phone");
     }

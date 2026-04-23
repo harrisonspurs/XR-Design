@@ -145,7 +145,13 @@ export async function createMorty(scene, camera) {
 
     // Show interaction prompt if close and looking
     if (distance <= 8 && cachedIsLooking && !dialogOpen) {
-      registerPrompt("morty", "Press E to talk to Morty", 3);
+      registerPrompt(
+        "morty",
+        window.__vrIsPresenting ?
+          "Trigger/A to talk to Morty"
+        : "Press E to talk to Morty",
+        3,
+      );
     } else if (!dialogOpen) {
       clearPrompt("morty");
     }
