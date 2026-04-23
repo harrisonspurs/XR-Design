@@ -7,6 +7,7 @@ import { createChair } from "./components/createChair.js";
 import { createRecordBox } from "./components/createRecordBox.js";
 import { createHeadphones } from "./components/createHeadphones.js";
 import { createPhone } from "./components/createPhone.js";
+import { createVRHud } from "./components/createVRHud.js";
 import { createPlayer } from "./components/playerSetup.js";
 import { createCar } from "./components/createCar.js";
 import { loadBar, getBarSpawnPoint } from "./components/createBar.js";
@@ -167,6 +168,7 @@ PhysicsLoader("/ammo", async () => {
   });
 
   const { update: updatePlayer } = playerController;
+  const { update: updateVRHud } = createVRHud(scene, camera);
 
   // Quest needs much lower render cost than desktop; switch quality only while in VR.
   let qualityBeforeVr = null;
@@ -265,6 +267,7 @@ PhysicsLoader("/ammo", async () => {
     updateChair();
     updateRecordBox();
     updatePhone();
+    updateVRHud();
     updateCar();
     updatePortalGun();
     updateRick(delta);

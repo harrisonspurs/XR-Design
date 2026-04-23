@@ -281,8 +281,12 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
     }
 
     if (distance <= 3 && cachedIsLooking) {
-      const msg = track
-        ? `Press E to ${isPlaying ? "pause" : "play"} — ${track.title}`
+      const msg = track ?
+          (window.__vrIsPresenting ?
+            `Boombox: trigger/A to ${isPlaying ? "pause" : "play"} — ${track.title}`
+          : `Press E to ${isPlaying ? "pause" : "play"} — ${track.title}`)
+        : window.__vrIsPresenting ?
+          "Boombox: pick a record in the record box first"
         : "Press E — select a record first";
       registerPrompt("boombox", msg, 1);
     } else {

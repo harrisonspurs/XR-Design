@@ -28,6 +28,7 @@ export function setupVRInput(renderer, playerController) {
     window.__vrIsPresenting = true;
     window.__vrLookRay = null;
     window.__recordBoxUiOpen = false;
+    window.__recordBoxUiLabel = "";
     state.baseReferenceSpace = renderer.xr.getReferenceSpace() || null;
     state.lastJumpPressed = false;
     state.lastInteractPressed = false;
@@ -44,6 +45,7 @@ export function setupVRInput(renderer, playerController) {
     window.__vrIsPresenting = false;
     window.__vrLookRay = null;
     window.__recordBoxUiOpen = false;
+    window.__recordBoxUiLabel = "";
     if (state.baseReferenceSpace) {
       renderer.xr.setReferenceSpace(state.baseReferenceSpace);
     }

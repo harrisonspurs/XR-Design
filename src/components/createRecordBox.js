@@ -162,6 +162,7 @@ export async function createRecordBox(scene, camera) {
   let currentIndex = 0;
   let uiOpen = false;
   window.__recordBoxUiOpen = false;
+  window.__recordBoxUiLabel = "";
   let lockedTracksUnlocked = ALBUM_PASSWORD.length === 0;
   let isDragging = false;
   let dragStartX = 0;
@@ -257,7 +258,7 @@ export async function createRecordBox(scene, camera) {
     border-radius: 20px;
     pointer-events: none;
     display: none;
-    z-index: 50;
+    z-index: 2200;
   `;
   document.body.appendChild(nowPlaying);
   function updateDisplay() {
@@ -268,6 +269,8 @@ export async function createRecordBox(scene, camera) {
     trackTitle.innerText = hideInfo ? "???" : track.title;
     trackArtist.innerText = hideInfo ? "???" : track.artist;
     counter.innerText = `${currentIndex + 1} / ${TRACKS.length}`;
+    window.__recordBoxUiLabel =
+      `Record ${currentIndex + 1}/${TRACKS.length}: ${hideInfo ? "???" : `${track.title} — ${track.artist}`}`;
 
     if (selectedTrack && selectedTrack.file === track.file) {
       selectBtn.innerText = "Selected - take to boombox";
@@ -304,6 +307,7 @@ export async function createRecordBox(scene, camera) {
   function openUI() {
     updateDisplay();
     ui.style.display = "block";
+    ui.style.zIndex = "2200";
     uiOpen = true;
     window.__recordBoxUiOpen = true;
     document.exitPointerLock();
@@ -313,6 +317,7 @@ export async function createRecordBox(scene, camera) {
     ui.style.display = "none";
     uiOpen = false;
     window.__recordBoxUiOpen = false;
+    window.__recordBoxUiLabel = "";
   }
 
   function unlockLockedTracks() {
@@ -381,7 +386,13 @@ export async function createRecordBox(scene, camera) {
     }
 
     if (!uiOpen && distance <= 4 && cachedIsLooking) {
-      registerPrompt("recordbox", "Press E to browse records", 3);
+      registerPrompt(
+        "recordbox",
+        window.__vrIsPresenting ?
+          "Record Box: trigger/A to open"
+        : "Press E to browse records",
+        3,
+      );
     } else {
       clearPrompt("recordbox");
     }

@@ -13,6 +13,7 @@ prompt.style.cssText = `
   border-radius: 20px;
   pointer-events: none;
   display: none;
+  z-index: 2000;
 `;
 document.body.appendChild(prompt);
 
@@ -35,6 +36,10 @@ export function getActiveInteraction() {
   return keys.reduce((a, b) =>
     activePrompts[a].priority >= activePrompts[b].priority ? a : b
   );
+}
+
+export function getActivePromptMessage() {
+  return shownPromptMessage || "";
 }
 
 function updatePrompt() {

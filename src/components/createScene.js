@@ -71,7 +71,17 @@ export function createScene() {
 
   // Add VR button only if XR is supported
   if (navigator.xr) {
-    document.body.appendChild(XRButton.createButton(renderer));
+    document.body.appendChild(
+      XRButton.createButton(renderer, {
+        optionalFeatures: [
+          "local-floor",
+          "bounded-floor",
+          "hand-tracking",
+          "dom-overlay",
+        ],
+        domOverlay: { root: document.body },
+      }),
+    );
   }
 
   // Handle window resizing to keep the canvas proportional
