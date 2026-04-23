@@ -11,6 +11,8 @@ export function setupVRInput(renderer, playerController) {
     lastInteractPressed: false,
     yawOffset: 0,
     baseReferenceSpace: null,
+    anchorHead: null,
+    lastReferenceTransform: null,
   };
 
   renderer.xr.addEventListener("sessionstart", () => {
@@ -18,11 +20,21 @@ export function setupVRInput(renderer, playerController) {
     state.lastJumpPressed = false;
     state.lastInteractPressed = false;
     state.yawOffset = 0;
+    state.anchorHead = null;
+    state.lastReferenceTransform = null;
   });
 
   renderer.xr.addEventListener("sessionend", () => {
     if (state.baseReferenceSpace) {
       renderer.xr.setReferenceSpace(state.baseReferenceSpace);
+    }
+    if (state.lastInteractPressed) {
+      document.dispatchEvent(
+        new KeyboardEvent("keyup", {
+          code: "KeyE",
+          key: "e",
+        }),
+      );
     }
     state.movement.forward = false;
     state.movement.backward = false;
@@ -33,6 +45,8 @@ export function setupVRInput(renderer, playerController) {
     state.lastInteractPressed = false;
     state.yawOffset = 0;
     state.baseReferenceSpace = null;
+    state.anchorHead = null;
+    state.lastReferenceTransform = null;
   });
 
   renderer.setAnimationLoop = function (callback) {
@@ -56,6 +70,7 @@ export function setupVRInput(renderer, playerController) {
             state.baseReferenceSpace,
             playerController,
             state.yawOffset,
+            state,
           );
         }
       }
@@ -149,14 +164,18 @@ function syncToPlayerReferenceSpace(
   baseReferenceSpace,
   playerController,
   yawRadians,
+  state,
 ) {
   if (!renderer?.xr || typeof XRRigidTransform === "undefined") return;
   const collider = playerController?.playerCollider;
   if (!collider?.position) return;
 
-  const pose = frame.getViewerPose(baseReferenceSpace);
-  const head = pose?.transform?.position;
-  if (!head) return;
+  if (!state.anchorHead) {
+    const pose = frame.getViewerPose(baseReferenceSpace);
+    const head = pose?.transform?.position;
+    if (!head) return;
+    state.anchorHead = { x: head.x, y: head.y, z: head.z };
+  }
 
   const cameraOffset =
     Number.isFinite(playerController?.cameraYOffset) ?
@@ -167,18 +186,22 @@ function syncToPlayerReferenceSpace(
   const desiredHeadY = collider.position.y + cameraOffset;
   const desiredHeadZ = collider.position.z;
 
-  // getOffsetReferenceSpace applies originOffset as new-origin-in-base-space.
-  // With rotation, translation must be: t = head - (R * desiredHead).
+  // Keep the session-start head position as anchor so physical head motion
+  // remains 1:1 while locomotion/turn updates move the world origin.
   const cos = Math.cos(yawRadians);
   const sin = Math.sin(yawRadians);
   const rotatedDesiredX = cos * desiredHeadX + sin * desiredHeadZ;
   const rotatedDesiredZ = -sin * desiredHeadX + cos * desiredHeadZ;
 
   const translation = {
-    x: head.x - rotatedDesiredX,
-    y: head.y - desiredHeadY,
-    z: head.z - rotatedDesiredZ,
+    x: state.anchorHead.x - rotatedDesiredX,
+    y: state.anchorHead.y - desiredHeadY,
+    z: state.anchorHead.z - rotatedDesiredZ,
   };
+
+  if (!shouldApplyReferenceUpdate(state.lastReferenceTransform, translation, yawRadians)) {
+    return;
+  }
 
   const half = yawRadians / 2;
   const rotation = {
@@ -192,6 +215,12 @@ function syncToPlayerReferenceSpace(
   renderer.xr.setReferenceSpace(
     baseReferenceSpace.getOffsetReferenceSpace(transform),
   );
+  state.lastReferenceTransform = {
+    x: translation.x,
+    y: translation.y,
+    z: translation.z,
+    yaw: yawRadians,
+  };
 }
 
 function getPreferredStick(axes = []) {
@@ -223,4 +252,16 @@ function normalizeAngle(value) {
   let angle = ((value % twoPi) + twoPi) % twoPi;
   if (angle > Math.PI) angle -= twoPi;
   return angle;
+}
+
+function shouldApplyReferenceUpdate(lastTransform, translation, yaw) {
+  if (!lastTransform) return true;
+  const positionEpsilon = 0.0005;
+  const yawEpsilon = 0.0005;
+  return (
+    Math.abs(lastTransform.x - translation.x) > positionEpsilon ||
+    Math.abs(lastTransform.y - translation.y) > positionEpsilon ||
+    Math.abs(lastTransform.z - translation.z) > positionEpsilon ||
+    Math.abs(lastTransform.yaw - yaw) > yawEpsilon
+  );
 }

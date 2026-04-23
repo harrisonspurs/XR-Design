@@ -73,6 +73,7 @@ function createShadowOptimizer(scene, camera, getQuality) {
   // Track all meshes that cast/receive shadows
   const trackedMeshes = [];
   const tmpWorldPosition = new THREE.Vector3();
+  let shadowsDisabledForLow = false;
 
   // Find all meshes in the scene that have shadows enabled
   scene.traverse((object) => {
@@ -95,12 +96,22 @@ function createShadowOptimizer(scene, camera, getQuality) {
 
     const quality = getQuality();
 
+    if (quality === "low") {
+      if (!shadowsDisabledForLow) {
+        for (const entry of trackedMeshes) {
+          entry.mesh.castShadow = false;
+          entry.mesh.receiveShadow = false;
+        }
+        shadowsDisabledForLow = true;
+      }
+      return;
+    }
+    shadowsDisabledForLow = false;
+
     // Determine shadow distance based on quality setting
     let maxDistance = 36; // Default for medium quality
     if (quality === "high") {
       maxDistance = 50;
-    } else if (quality === "low") {
-      maxDistance = 0; // No shadows for low quality
     }
 
     const maxDistanceSq = maxDistance * maxDistance;
@@ -157,8 +168,19 @@ PhysicsLoader("/ammo", async () => {
 
   const { update: updatePlayer } = playerController;
 
+  // Quest needs much lower render cost than desktop; switch quality only while in VR.
+  let qualityBeforeVr = null;
+  renderer.xr.addEventListener("sessionstart", () => {
+    qualityBeforeVr = getQuality();
+    applyQuality("low");
+  });
+  renderer.xr.addEventListener("sessionend", () => {
+    if (qualityBeforeVr) applyQuality(qualityBeforeVr);
+    qualityBeforeVr = null;
+  });
+
   // Set up VR controller input
- 
+  
   setupVRInput(renderer, playerController);
   const { update: updateHeadphones, getIsWearing } = await createHeadphones(scene, camera);
   const boomboxController = await createBoombox(scene, camera, getIsWearing);
