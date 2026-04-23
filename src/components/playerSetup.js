@@ -179,9 +179,13 @@ export async function createPlayer({
     if (
       !playerCollider ||
       !player ||
-      !player.controls ||
-      !player.controls.isLocked
+      !player.controls
     ) {
+      return;
+    }
+
+    const isVrPresenting = !!renderer?.xr?.isPresenting;
+    if (!player.controls.isLocked && !isVrPresenting) {
       return;
     }
 
