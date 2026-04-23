@@ -222,7 +222,6 @@ function syncToPlayerReferenceSpace(
   const desiredHeadY = collider.position.y + cameraOffset;
   const desiredHeadZ = collider.position.z;
 
-  // keep head tracking stable while moving/turning
   const cos = Math.cos(yawRadians);
   const sin = Math.sin(yawRadians);
   const rotatedDesiredX = cos * desiredHeadX + sin * desiredHeadZ;
