@@ -161,6 +161,7 @@ export async function createRecordBox(scene, camera) {
   }
   let currentIndex = 0;
   let uiOpen = false;
+  window.__recordBoxUiOpen = false;
   let lockedTracksUnlocked = ALBUM_PASSWORD.length === 0;
   let isDragging = false;
   let dragStartX = 0;
@@ -223,13 +224,14 @@ export async function createRecordBox(scene, camera) {
   selectBtn.addEventListener("mouseleave", () => {
     selectBtn.style.background = "rgba(255,150,50,0.8)";
   });
-  selectBtn.addEventListener("click", () => {
+  function selectCurrentTrack() {
     const track = TRACKS[currentIndex];
     if (isLockedTrack(track) && !unlockLockedTracks()) return;
     selectedTrack = track;
     selectBtn.innerText = "Selected - take to boombox";
     closeUI();
-  });
+  }
+  selectBtn.addEventListener("click", selectCurrentTrack);
   ui.appendChild(selectBtn);
   const closeBtn = document.createElement("div");
   closeBtn.innerText = "X Close";
@@ -303,12 +305,14 @@ export async function createRecordBox(scene, camera) {
     updateDisplay();
     ui.style.display = "block";
     uiOpen = true;
+    window.__recordBoxUiOpen = true;
     document.exitPointerLock();
   }
 
   function closeUI() {
     ui.style.display = "none";
     uiOpen = false;
+    window.__recordBoxUiOpen = false;
   }
 
   function unlockLockedTracks() {
@@ -327,24 +331,41 @@ export async function createRecordBox(scene, camera) {
   }
 
   document.addEventListener("keydown", (e) => {
-    if (e.code === "Escape" && uiOpen) {
-      closeUI();
-      return;
+    if (uiOpen) {
+      if (e.code === "Escape" || e.code === "KeyE") {
+        closeUI();
+        return;
+      }
+      if (e.code === "ArrowLeft") {
+        navigate(-1);
+        return;
+      }
+      if (e.code === "ArrowRight") {
+        navigate(1);
+        return;
+      }
+      if (e.code === "Enter" || e.code === "Space") {
+        selectCurrentTrack();
+        return;
+      }
     }
+
     if (e.code !== "KeyE") return;
     if (!recordBox) return;
 
     const active = getActiveInteraction();
-    if (active !== "recordbox" && !uiOpen) return;
+    if (active !== "recordbox" && !uiOpen) {
+      if (!window.__vrIsPresenting) return;
+      const lookingAtRecordBox = interactionProxy
+        ? isLookingAt(camera, interactionProxy, 4.5)
+        : isLookingAt(camera, recordBox, 4);
+      if (!lookingAtRecordBox) return;
+    }
 
     const distance = camera.position.distanceTo(recordBox.position);
     if (distance > 4 && !uiOpen) return;
 
-    if (uiOpen) {
-      closeUI();
-    } else {
-      openUI();
-    }
+    openUI();
   });
 
   function update() {

@@ -251,7 +251,12 @@ export async function createBoombox(scene, camera, getIsWearingHeadphones = () =
   document.addEventListener("keydown", (e) => {
     if (e.code !== "KeyE") return;
     if (!boombox) return;
-    if (getActiveInteraction() !== "boombox") return;
+    if (getActiveInteraction() !== "boombox") {
+      if (!window.__vrIsPresenting) return;
+      const distance = camera.position.distanceTo(boombox.position);
+      if (distance > 3.2) return;
+      if (!isLookingAt(camera, boombox, 3.2)) return;
+    }
     togglePlayback();
   });
 
